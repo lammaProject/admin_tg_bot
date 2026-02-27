@@ -1,0 +1,30 @@
+name: Post daily anekdot
+
+on:
+  schedule:
+    # Каждый день в 06:00 UTC = 09:00 МСК
+    - cron: "0 6 * * *"
+  workflow_dispatch:  # Позволяет запустить вручную из GitHub UI
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Post anekdot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+        run: python main.py
