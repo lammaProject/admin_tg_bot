@@ -76,7 +76,7 @@ async def send_anekdot() -> None:
     if not joke:
         raise RuntimeError("Не удалось получить анекдот")
 
-    message = f"😄 *Анекдот дня*\n\n{joke}\n\n_© anekdot.ru_"
+    message = f"😄 *Анекдот дня*\n\n{joke}\n\n_©lamma_"
 
     bot = Bot(token=BOT_TOKEN)
     async with bot:
