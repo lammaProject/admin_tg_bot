@@ -1,7 +1,6 @@
 import os
 
 from io import BytesIO
-from tkinter import Image
 from typing import Tuple
 from dotenv import load_dotenv
 from google import genai
