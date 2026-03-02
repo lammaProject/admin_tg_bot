@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from llm import generate_post, client_model_handler
+from aiohttp import web
 
 load_dotenv()
 
@@ -47,7 +48,18 @@ async def scheduled_job():
         types.InputMediaPhoto(media=types.BufferedInputFile(image, filename='image.png'), caption=text)])
 
 
+async def health(request):
+    return web.Response(text="OK")
+
+
 async def main():
+    app = web.Application()
+    app.router.add_get("/", health)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", 8080)
+    await site.start()
+
     scheduler.start()
     async with bot:
         await dp.start_polling(bot)
