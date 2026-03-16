@@ -25,28 +25,28 @@ reactions = [
     "😇", "😂", "🤝", "🤙",
 ]
 
+bot = Bot(token=BOT_TOKEN)
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
+
+
+@dp.message()
+async def message_handler(message: types.Message):
+    if not message.text:
+        return
+    if message.from_user and message.from_user.id == bot.id:
+        return
+
+    text = await client_model_handler(message.text)
+    if not text:
+        return
+    await message.reply(text)
+    await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
+
 
 async def process_update(update_data: dict):
-    bot = Bot(token=BOT_TOKEN)  # type: ignore[arg-type]
-    storage = MemoryStorage()
-    dp = Dispatcher(storage=storage)
-
-    @dp.message()
-    async def message_handler(message: types.Message):
-        if not message.text:
-            return
-        if message.from_user and message.from_user.id == bot.id:
-            return
-        
-        text = await client_model_handler(message.text)
-        if not text:
-            return
-        await message.reply(text)
-        await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
-
     update = types.Update(**update_data)
     await dp.feed_update(bot, update)
-    await bot.session.close()
 
 
 class handler(BaseHTTPRequestHandler):
