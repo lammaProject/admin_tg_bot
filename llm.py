@@ -36,8 +36,8 @@ async def client_model_handler(message: str):
         except Exception as e:
             retries += 1
             model = fallback_model
-            
+
     if response is None:
-        return Exception
+        return ""
 
     return response.text
