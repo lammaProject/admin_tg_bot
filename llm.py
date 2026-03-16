@@ -32,7 +32,10 @@ async def client_model_handler(message: str):
         return res.text
     except Exception as e:
         try:
-            res = client_hugging.chat.completions.create(messages=config.system_instruction + message)
+            res = client_hugging.chat.completions.create(messages=[{
+                "role": "user",
+                "content": config.system_instruction + message
+            }])
             return res.choices[0].message
         except Exception as e:
             print(e)
