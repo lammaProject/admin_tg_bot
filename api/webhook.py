@@ -28,7 +28,6 @@ reactions = [
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        return
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length)
 
@@ -60,7 +59,7 @@ async def process_update(update_data: dict):
         if message.from_user and message.from_user.id == bot.id:
             return
 
-        text = await client_model_handler(message.text)
+        text = await client_model_handler(message.text, message.from_user.username)
         if not text:
             return
         await message.reply(text)

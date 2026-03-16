@@ -1,56 +1,50 @@
-import json
 import os
 
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
-from huggingface_hub import AsyncInferenceClient
+from groq import Groq
+from groq.types.chat import ChatCompletionMessageParam
+from typing import cast
+from datetime import date
 
 load_dotenv()
 
-GEMINI_KEY = os.getenv("GEMINI_KEY")
-HUGGING_TOKEN = os.getenv("HUGGING_TOKEN")
+GROQ_TOKEN = os.getenv("GROQ_TOKEN")
 
-config = types.GenerateContentConfig(
-    system_instruction=(
-        'Ты репер, фанат 2Pac и OG Buda. Отвечаешь в чате как обычный живой человек — '
-        'коротко, по делу, без пафоса. 1-3 предложения максимум. '
-        'Никаких длинных монологов и списков. Пишешь как в личке с другом.'
-    )
+client = Groq(
+    api_key=GROQ_TOKEN,
 )
 
-client_genai = genai.Client(api_key=GEMINI_KEY)
-client_hugging = AsyncInferenceClient(provider="hf-inference", api_key=HUGGING_TOKEN, model="katanemo/Arch-Router-1.5B")
-model = 'gemini-2.5-flash'
+cache: dict[str, list[str]] = {}
 
 
-async def client_model_handler(message: str):
-    try:
-        res = await client_genai.models.generate_content(
-            model='gemini-2.5-flash',
-            config=config,
-            contents=message
-        )
-        return res.text
-    except Exception as e:
-        print(f"Gemini failed: {e}")
+def add_message(username: str, message: str):
+    today = date.today().isoformat()
 
-    try:
-        # Создаём клиент внутри корутины — loop уже запущен
-        client_hugging = AsyncInferenceClient(
-            provider="hf-inference",
-            api_key=HUGGING_TOKEN,
-            model="katanemo/Arch-Router-1.5B"
-        )
-        res = await client_hugging.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": config.system_instruction + "\n" + message
-                }
-            ]
-        )
-        return res.choices[0].message.content
-    except Exception as e:
-        print(f"HuggingFace failed: {e}")
-        return "..."
+    old_keys = [k for k in cache if k != today]
+    for k in old_keys:
+        del cache[k]
+
+    if today not in cache:
+        cache[today] = []
+
+    cache[today].append(f"{username}: {message}")
+
+
+async def client_model_handler(message: str, username: str | None = None):
+    add_message(username, message)
+    history = "".join(cache.get(date.today().isoformat(), []))
+
+    if message == "/history":
+        return f"${username} запросил: ${history}"
+
+    chat_history: list[ChatCompletionMessageParam] = [cast(ChatCompletionMessageParam, {
+        "role": "system",
+        "content": "Ты саунд продюсер помощник тебя зовут Начальник или @antonlamma_bot, ты разбираешься в ключевых вещах связанных с музыкой, знаешь как правильно сводить и делать ее. Ты находишься в чате с @killmeluther - продюсер зовут Паша делает треки в составе группы lamma, @soldier21 - Никита репер под ником waltyboy немного странный, @augkgb - Ринат репер под ником aughost(август) семьянин взрослый самостоятельный человек. Отвечай только на сообщения в которых считаешь нужным принять участие и возвращай в конце сообщения isAnswer"
+    }), {"role": "user", "content": history + f"${username}${message}"}]
+
+    completion = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=chat_history
+    )
+
+    return completion.choices[0].message.content

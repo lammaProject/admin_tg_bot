@@ -2,6 +2,5 @@ aiogram==3.25.0
 requests==2.31.0
 beautifulsoup4==4.12.3
 python-dotenv==1.0.0
-google-genai==1.65.0
-huggingface-hub==1.5.0
 aiohttp==3.13.3
+groq==1.1.1
