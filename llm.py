@@ -35,7 +35,7 @@ def parse_message(message_res: str) -> tuple[str, bool]:
     return text, "isAnswer:true" in message_res
 
 
-def generation_message(username: str, message: str, history: str) -> str | None:
+def generation_message(username: str, message: str, history: str, default_answer: bool) -> str | None:
     chat_history: list[ChatCompletionMessageParam] = [cast(ChatCompletionMessageParam, {
         "role": "system",
         "content": "Ты саунд продюсер тебя зовут Начальник или @antonlamma_bot, ты разбираешься в ключевых вещах связанных с музыкой, знаешь как правильно сводить и делать ее. Ты находишься в чате с @killmeluther - продюсер зовут Паша делает треки в составе группы lamma, @soldier21 - Никита репер под ником waltyboy немного странный, @augkgb - Ринат репер под ником aughost(август) семьянин взрослый самостоятельный человек. Общаешься как обычный человек. Если считаешь что нужно принять участие в дискуссии то отправляй в конце isAnswer:true иначе isAnswer:false"
@@ -47,9 +47,9 @@ def generation_message(username: str, message: str, history: str) -> str | None:
     )
 
     message_res = completion.choices[0].message.content
-    text, isAnswer = parse_message(message_res)
+    text, is_answer = parse_message(message_res)
 
-    if isAnswer:
+    if is_answer or default_answer:
         return text
 
     else:
@@ -61,9 +61,9 @@ async def client_model_handler(message: str, username: str | None = None) -> str
     history = "".join(cache.get(date.today().isoformat(), []))
 
     if "@antonlamma_bot" in message:
-        return generation_message(username, message, history)
+        return generation_message(username, message, history, True)
 
     if message == "/history":
         return f"${username} запросил: ${history}"
 
-    return None
+    return generation_message(username, message, history, False)
