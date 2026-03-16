@@ -60,8 +60,9 @@ async def process_update(update_data: dict):
             return
 
         text = await client_model_handler(message.text, message.from_user.username)
-        if not text:
+        if not text or text is None:
             return
+        
         await message.reply(text)
         await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
 
