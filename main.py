@@ -1,69 +1,37 @@
-import logging
+"""
+Скрипт для регистрации webhook у Telegram.
+Запусти один раз после деплоя: python main.py
+"""
 import os
 import asyncio
-import random
-import pytz
+import logging
 
+from aiogram import Bot
 from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher, types
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from llm import generate_post, client_model_handler
-from aiohttp import web
 
 load_dotenv()
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID")
-
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
-scheduler = AsyncIOScheduler(timezone=pytz.timezone("Europe/Moscow"))
-
-reactions = ["👍", "👎", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢", "🎉", "🤩", "🤮", "💩", "🙏", "👌", "🕊", "🤡", "🥱",
-             "🥴", "😍", "🐳", "❤‍🔥", "🌚", "🌭", "💯", "🤣", "⚡", "🍌", "🏆", "💔", "🤨", "😐", "🍓", "🍾", "💋", "🖕", "😈", "😴", "😭",
-             "🤓", "👻", "👨‍💻", "👀", "🎃", "🙈", "😇", "😂", "🤝", "🤙"]
+BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+VERCEL_URL: str = os.getenv("VERCEL_URL", "")
 
 
-@dp.message()
-async def message_handler(message: types.Message):
-    if not message.text:
-        return
-    if message.from_user.id == bot.id:
-        return
-    text = await client_model_handler(message.text)
-    await message.reply(text)
-    await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
+async def set_webhook():
+    if not BOT_TOKEN:
+        raise ValueError("BOT_TOKEN is not set")
+    if not VERCEL_URL:
+        raise ValueError("VERCEL_URL is not set (e.g. https://your-project.vercel.app)")
 
+    webhook_url = f"{VERCEL_URL}/api/webhook"
+    bot = Bot(token=BOT_TOKEN)
 
-@scheduler.scheduled_job('cron', hour=8, minute=00)
-async def scheduled_job():
-    image, text = await generate_post()
-    await bot.send_media_group(CHANNEL_ID, media=[
-        types.InputMediaPhoto(media=types.BufferedInputFile(image, filename='image.png'), caption=text)])
-
-
-async def health(request):
-    return web.Response(text="OK")
-
-
-async def main():
-    app = web.Application()
-    app.router.add_get("/", health)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8080)
-    await site.start()
-
-    scheduler.start()
-    async with bot:
-        await dp.start_polling(bot)
+    await bot.set_webhook(webhook_url)
+    info = await bot.get_webhook_info()
+    logger.info(f"Webhook set: {info.url}")
+    await bot.session.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(set_webhook())
