@@ -62,10 +62,10 @@ async def process_update(update_data: dict):
         if not message.audio:
             await message.reply("TEST@")
 
-        if message.document and message.document.file_name.endswith(".mp3"):
+        if message.audio:
             await message.reply("test")
-            text = await analyze_audio(message.audio, bot)
-            await message.reply(text)
+            # text = await analyze_audio(message.audio, bot)
+            # await message.reply(text)
 
         text = await client_model_handler(message.text, message.from_user.username)
         if not text or text is None:
