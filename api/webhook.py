@@ -25,29 +25,6 @@ reactions = [
     "😇", "😂", "🤝", "🤙",
 ]
 
-bot = Bot(token=BOT_TOKEN)
-storage = MemoryStorage()
-dp = Dispatcher(storage=storage)
-
-
-@dp.message()
-async def message_handler(message: types.Message):
-    if not message.text:
-        return
-    if message.from_user and message.from_user.id == bot.id:
-        return
-
-    text = await client_model_handler(message.text)
-    if not text:
-        return
-    await message.reply(text)
-    await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
-
-
-async def process_update(update_data: dict):
-    update = types.Update(**update_data)
-    await dp.feed_update(bot, update)
-
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -69,7 +46,27 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"OK")
 
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Webhook is running")
+
+async def process_update(update_data: dict):
+    bot = Bot(token=BOT_TOKEN)
+    storage = MemoryStorage()
+    dp = Dispatcher(storage=storage)
+
+    @dp.message()
+    async def message_handler(message: types.Message):
+        if not message.text:
+            return
+        if message.from_user and message.from_user.id == bot.id:
+            return
+
+        text = await client_model_handler(message.text)
+        if not text:
+            return
+        await message.reply(text)
+        await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
+
+    try:
+        update = types.Update(**update_data)
+        await dp.feed_update(bot, update)
+    finally:
+        await bot.session.close()
