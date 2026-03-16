@@ -20,8 +20,7 @@ config = types.GenerateContentConfig(
 )
 
 client_genai = genai.Client(api_key=GEMINI_KEY)
-client_hugging = InferenceClient(provider="hf-inference", api_key=HUGGING_TOKEN, model="katanemo/Arch-Router-1.5B",
-                                 config=config)
+client_hugging = InferenceClient(provider="hf-inference", api_key=HUGGING_TOKEN, model="katanemo/Arch-Router-1.5B")
 model = 'gemini-2.5-flash'
 
 
@@ -33,9 +32,9 @@ async def client_model_handler(message: str):
         return res.text
     except Exception as e:
         try:
-            res = client_hugging.text_generation(prompt=message)
+            res = client_hugging.text_generation(prompt=config.system_instruction + message)
             parsed = json.loads(res)
             route = parsed["route"]
-            return "test"
+            return route
         except Exception as e:
             print(e)
