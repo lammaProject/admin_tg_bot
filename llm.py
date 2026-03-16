@@ -35,12 +35,8 @@ async def client_model_handler(message: str):
             res = await client_hugging.chat.completions.create(
                 messages=[
                     {
-                        "role": "system",
-                        "content": config.system_instruction
-                    },
-                    {
                         "role": "user",
-                        "content": message
+                        "content": message + config.system_instruction
                     }
                 ]
             )
