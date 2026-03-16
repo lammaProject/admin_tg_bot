@@ -23,7 +23,7 @@ image_client = InferenceClient(provider='hf-inference', api_key=HUGGING_TOKEN)
 
 async def client_model_handler(message: str):
     response = client.models.generate_content(model=model,
-                                              config=config + "отвечай не длинными предложениями, словно ты реальный человек репер, а не карикатура",
+                                              config=config + " отвечай не короткими предложениям, словно ты реальный человек репер, а не карикатура. И обычный пользователь чата",
                                               contents=message)
     return response.text
 
