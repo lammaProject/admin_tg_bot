@@ -55,7 +55,8 @@ async def process_update(update_data: dict):
     @dp.message()
     async def message_handler(message: types.Message):
         if message.audio:
-            await message.reply("test")
+            text = await analyze_audio(message.audio, bot)
+            await message.reply(text)
 
         if not message.text:
             return
