@@ -26,11 +26,12 @@ async def client_model_handler(message: str):
     retries = 0
     model = 'gemini-2.5-flash'
     fallback_model = 'katanemo/Arch-Router-1.5B'
+
     while retries < 3:
         try:
-            response = client.models.generate_content(model=model,
-                                                      config=config,
-                                                      contents=message)
+            response = await client.models.generate_content(model=model,
+                                                            config=config,
+                                                            contents=message)
             return response.text + model
         except Exception as e:
             retries += 1
