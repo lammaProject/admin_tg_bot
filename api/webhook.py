@@ -17,10 +17,6 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-bot = Bot(token=BOT_TOKEN)
-storage = MemoryStorage()
-dp = Dispatcher(storage=storage)
-
 reactions = [
     "👍", "👎", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢",
     "🎉", "🤩", "🤮", "💩", "🙏", "👌", "🕊", "🤡", "🥱", "🥴", "😍", "🐳",
@@ -30,15 +26,24 @@ reactions = [
 ]
 
 
-@dp.message()
-async def message_handler(message: types.Message):
-    if not message.text:
-        return
-    if message.from_user.id == bot.id:
-        return
-    text = await client_model_handler(message.text)
-    await message.reply(text)
-    await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
+async def process_update(update_data: dict):
+    bot = Bot(token=BOT_TOKEN)
+    storage = MemoryStorage()
+    dp = Dispatcher(storage=storage)
+
+    @dp.message()
+    async def message_handler(message: types.Message):
+        if not message.text:
+            return
+        if message.from_user.id == bot.id:
+            return
+        text = await client_model_handler(message.text)
+        await message.reply(text)
+        await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
+
+    update = types.Update(**update_data)
+    await dp.feed_update(bot, update)
+    await bot.session.close()
 
 
 class handler(BaseHTTPRequestHandler):
@@ -48,8 +53,12 @@ class handler(BaseHTTPRequestHandler):
 
         try:
             update_data = json.loads(body.decode("utf-8"))
-            update = types.Update(**update_data)
-            asyncio.run(dp.feed_update(bot, update))
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(process_update(update_data))
+            finally:
+                loop.close()
         except Exception as e:
             logger.error(f"Error processing update: {e}")
 
