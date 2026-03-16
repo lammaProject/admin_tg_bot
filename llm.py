@@ -36,6 +36,6 @@ async def client_model_handler(message: str):
             res = client_hugging.text_generation(prompt=message)
             parsed = json.loads(res)
             route = parsed["route"]
-            return route
+            return "test"
         except Exception as e:
             print(e)
