@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from huggingface_hub import InferenceClient
+from huggingface_hub import AsyncInferenceClient
 
 load_dotenv()
 
@@ -20,7 +20,7 @@ config = types.GenerateContentConfig(
 )
 
 client_genai = genai.Client(api_key=GEMINI_KEY)
-client_hugging = InferenceClient(provider="hf-inference", api_key=HUGGING_TOKEN, model="katanemo/Arch-Router-1.5B")
+client_hugging = AsyncInferenceClient(provider="hf-inference", api_key=HUGGING_TOKEN, model="katanemo/Arch-Router-1.5B")
 model = 'gemini-2.5-flash'
 
 
@@ -32,10 +32,18 @@ async def client_model_handler(message: str):
         return res.text
     except Exception as e:
         try:
-            res = client_hugging.chat.completions.create(messages=[{
-                "role": "user",
-                "content": config.system_instruction + message
-            }])
+            res = await client_hugging.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": config.system_instruction
+                    },
+                    {
+                        "role": "user",
+                        "content": message
+                    }
+                ]
+            )
             return res.choices[0].message.content
         except Exception as e:
             print(e)
