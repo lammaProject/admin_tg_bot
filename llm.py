@@ -1,7 +1,5 @@
 import os
 
-from io import BytesIO
-from typing import Tuple
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -19,34 +17,27 @@ config = types.GenerateContentConfig(
         'Никаких длинных монологов и списков. Пишешь как в личке с другом.'
     )
 )
-model = 'gemini-2.5-flash'
 
 client = genai.Client(api_key=GEMINI_KEY)
 image_client = InferenceClient(provider='hf-inference', api_key=HUGGING_TOKEN)
 
 
 async def client_model_handler(message: str):
-    response = client.models.generate_content(model=model,
-                                              config=config,
-                                              contents=message)
+    retries = 0
+    response = None
+    model = 'gemini-2.5-flash'
+    fallback_model = 'katanemo/Arch-Router-1.5B'
+
+    while retries < 3:
+        try:
+            response = client.models.generate_content(model=model,
+                                                      config=config,
+                                                      contents=message)
+        except Exception as e:
+            retries += 1
+            model = fallback_model
+            
+    if response is None:
+        return Exception
+
     return response.text
-
-
-async def generate_post() -> Tuple[bytes, str]:
-    text = await client_model_handler(
-        'Придумай интересный пост, он может быть связан с чем угодно и о чем угодно из жизни репера! Не больше 1024 символов. В конце поста напиши image:(тут опиши промт для картинки связанную с ним)')
-
-    parts = text.split("image:")
-
-    post_text = parts[0].strip()
-    image_prompt = parts[1].strip() if len(parts) > 1 else ""
-
-    image = image_client.text_to_image(
-        image_prompt,
-        model="black-forest-labs/FLUX.1-schnell",
-    )
-    buf = BytesIO()
-    image.save(buf, format="PNG")
-    buf.seek(0)
-
-    return buf.read(), post_text

@@ -37,6 +37,7 @@ async def process_update(update_data: dict):
             return
         if message.from_user.id == bot.id:
             return
+        
         text = await client_model_handler(message.text)
         await message.reply(text)
         await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
