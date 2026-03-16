@@ -60,6 +60,7 @@ async def process_update(update_data: dict):
             return
 
         if message.audio:
+            await message.reply("test")
             text = await analyze_audio(message.audio, bot)
             await message.reply(text)
 
