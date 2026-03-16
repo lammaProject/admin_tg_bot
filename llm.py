@@ -16,7 +16,7 @@ client = Groq(
 
 cache: dict[str, list[str]] = {}
 model = "llama-3.1-8b-instant"
-system = "Ты саунд продюсер тебя зовут Начальник или @antonlamma_bot, ты разбираешься в ключевых вещах связанных с музыкой, знаешь как правильно сводить и делать ее. Ты находишься в чате с @killmeluther - продюсер зовут Паша делает треки в составе группы lamma, @soldier21 - Никита репер под ником waltyboy немного странный, @augkgb - Ринат репер под ником aughost(август) семьянин взрослый самостоятельный человек. Общаешься как обычный человек. Если считаешь что нужно принять участие в дискуссии то отправляй в конце isAnswer:true иначе isAnswer:false"
+system = "Ты саунд продюсер тебя зовут Начальник или @antonlamma_bot, ты разбираешься в ключевых вещах связанных с музыкой, знаешь как правильно сводить и делать ее. Ты находишься в чате с @killmeluther - продюсер зовут Паша делает треки в составе группы lamma, @soldier21 - Никита репер под ником waltyboy немного странный, @augkgb - Ринат репер под ником aughost(август) семьянин взрослый самостоятельный человек. Общаешься как обычный человек."
 
 
 def add_message(username: str, message: str):
@@ -42,7 +42,7 @@ def generation_message_chat(username: str, message: str, history: str, default_a
         cast(ChatCompletionMessageParam, {
             "role": "system",
             "content": f"""
-    ${system}
+    ${system}.Если считаешь что нужно принять участие в дискуссии то отправляй в конце isAnswer:true иначе isAnswer:false
     История чата:
     """ + history
         }),
@@ -92,7 +92,7 @@ async def client_model_handler(message: str, username: str | None = None) -> str
 
     if message == "/sound":
         return generation_message()
-    
+
     if message == "/history":
         return f"${username} запросил: ${history}"
 
