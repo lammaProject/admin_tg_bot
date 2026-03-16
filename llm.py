@@ -36,6 +36,12 @@ async def client_model_handler(message: str):
         print(f"Gemini failed: {e}")
 
     try:
+        # Создаём клиент внутри корутины — loop уже запущен
+        client_hugging = AsyncInferenceClient(
+            provider="hf-inference",
+            api_key=HUGGING_TOKEN,
+            model="katanemo/Arch-Router-1.5B"
+        )
         res = await client_hugging.chat.completions.create(
             messages=[
                 {
