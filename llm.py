@@ -31,7 +31,7 @@ async def client_model_handler(message: str):
             response = client.models.generate_content(model=model,
                                                       config=config,
                                                       contents=message)
-            return response.text
+            return response.text + model
         except Exception as e:
             retries += 1
             model = fallback_model
