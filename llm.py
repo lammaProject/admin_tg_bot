@@ -1,3 +1,4 @@
+import json
 import os
 
 from dotenv import load_dotenv
@@ -18,23 +19,29 @@ config = types.GenerateContentConfig(
     )
 )
 
-client = genai.Client(api_key=GEMINI_KEY)
-image_client = InferenceClient(provider='hf-inference', api_key=HUGGING_TOKEN)
+client_genai = genai.Client(api_key=GEMINI_KEY)
+client_hugging = InferenceClient(provider="hf-inference", api_key=HUGGING_TOKEN, model="katanemo/Arch-Router-1.5B")
 
 
 async def client_model_handler(message: str):
-    retries = 0
     model = 'gemini-2.5-flash'
-    fallback_model = 'katanemo/Arch-Router-1.5B'
+    response = None
 
-    while retries < 3:
+    try:
+        res = await client_genai.models.generate_content(model=model,
+                                                         config=config,
+                                                         contents=message)
+        response = res.text
+    except Exception as e:
         try:
-            response = await client.models.generate_content(model=model,
-                                                            config=config,
-                                                            contents=message)
-            return response.text + model
+            res = client_hugging.text_generation(prompt=message)
+            parsed = json.loads(res)
+            route = parsed["route"]
+            response = route
         except Exception as e:
-            retries += 1
-            model = fallback_model
+            print(e)
 
-    return "..."
+    if response is not None:
+        return response
+
+    return "error"
