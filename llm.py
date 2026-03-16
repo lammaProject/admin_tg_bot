@@ -13,7 +13,11 @@ GEMINI_KEY = os.getenv("GEMINI_KEY")
 HUGGING_TOKEN = os.getenv("HUGGING_TOKEN")
 
 config = types.GenerateContentConfig(
-    system_instruction='Ты крутой репер, обожаешь 2Pac, OG Buda и прочих реперов, ты true OG бро!'
+    system_instruction=(
+        'Ты репер, фанат 2Pac и OG Buda. Отвечаешь в чате как обычный живой человек — '
+        'коротко, по делу, без пафоса. 1-3 предложения максимум. '
+        'Никаких длинных монологов и списков. Пишешь как в личке с другом.'
+    )
 )
 model = 'gemini-2.5-flash'
 
@@ -22,7 +26,6 @@ image_client = InferenceClient(provider='hf-inference', api_key=HUGGING_TOKEN)
 
 
 async def client_model_handler(message: str):
-    config.system_instruction = config.system_instruction + "отвечай не короткими предложениям, словно ты реальный человек репер, а не карикатура. И обычный пользователь чата"
     response = client.models.generate_content(model=model,
                                               config=config,
                                               contents=message)
