@@ -26,20 +26,25 @@ model = 'gemini-2.5-flash'
 
 async def client_model_handler(message: str):
     try:
-        res = await client_genai.models.generate_content(model=model,
-                                                         config=config,
-                                                         contents=message)
+        res = await client_genai.models.generate_content(
+            model='gemini-2.5-flash',
+            config=config,
+            contents=message
+        )
         return res.text
     except Exception as e:
-        try:
-            res = await client_hugging.chat.completions.create(
-                messages=[
-                    {
-                        "role": "user",
-                        "content": message + config.system_instruction
-                    }
-                ]
-            )
-            return res.choices[0].message.content
-        except Exception as e:
-            print(e)
+        print(f"Gemini failed: {e}")
+
+    try:
+        res = await client_hugging.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": config.system_instruction + "\n" + message
+                }
+            ]
+        )
+        return res.choices[0].message.content
+    except Exception as e:
+        print(f"HuggingFace failed: {e}")
+        return "..."
