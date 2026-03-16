@@ -1,21 +1,30 @@
 import os
 
+from aiogram import Bot
+from aiogram.types import Audio
 from dotenv import load_dotenv
 from groq import Groq
 from groq.types.chat import ChatCompletionMessageParam
 from typing import cast
 from datetime import date
+from google import genai
+import io
 
 load_dotenv()
 
 GROQ_TOKEN = os.getenv("GROQ_TOKEN")
+GENAI_TOKEN = os.getenv("GENAI_TOKEN")
 
-client = Groq(
+client_groq = Groq(
     api_key=GROQ_TOKEN,
+)
+client_genai = genai.Client(
+    api_key=GENAI_TOKEN,
 )
 
 cache: dict[str, list[str]] = {}
-model = "llama-3.1-8b-instant"
+
+model_groq = "llama-3.1-8b-instant"
 system = "Ты саунд продюсер тебя зовут Начальник или @antonlamma_bot, ты разбираешься в ключевых вещах связанных с музыкой, знаешь как правильно сводить и делать ее. Ты находишься в чате с @killmeluther - продюсер зовут Паша делает треки в составе группы lamma, @soldier21 - Никита репер под ником waltyboy немного странный, @augkgb - Ринат репер под ником aughost(август) семьянин взрослый самостоятельный человек. Общаешься как обычный человек."
 
 
@@ -52,7 +61,7 @@ def generation_message_chat(username: str, message: str, history: str, default_a
         })
     ]
 
-    completion = client.chat.completions.create(
+    completion = client_groq.chat.completions.create(
         model=model,
         messages=chat_history
     )
@@ -76,14 +85,34 @@ def generation_message():
         "content": f"Назови какой нибудь факт как лучше всего сводить или писать музыку или сочинять"
     })]
 
-    completion = client.chat.completions.create(
-        model=model,
+    completion = client_groq.chat.completions.create(
+        model=model_groq,
         messages=messages,
         temperature=0.9
     )
 
     message_res = completion.choices[0].message.content
     return message_res
+
+
+async def analyze_audio(audio: Audio, bot: Bot):
+    buf = io.BytesIO()
+    await bot.download(audio.file_id, destination=buf)
+    buf.seek(0)
+
+    prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали"
+
+    file = client_genai.files.upload(
+        file=buf,
+        config={"mime_type": "audio/mpeg", "display_name": audio.file_name}
+    )
+
+    response = client_genai.models.generate_content(
+        model='gemini-3-flash-preview',
+        contents=[prompt, file]
+    )
+
+    return response.text
 
 
 async def client_model_handler(message: str, username: str | None = None) -> str | None:

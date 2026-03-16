@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
-from llm import client_model_handler
+from llm import client_model_handler, analyze_audio
 
 load_dotenv()
 
@@ -59,10 +59,14 @@ async def process_update(update_data: dict):
         if message.from_user and message.from_user.id == bot.id:
             return
 
+        if message.audio:
+            text = await analyze_audio(message.audio, bot)
+            await message.reply(text)
+
         text = await client_model_handler(message.text, message.from_user.username)
         if not text or text is None:
             return
-        
+
         await message.reply(text)
         await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
 
