@@ -62,7 +62,7 @@ def generation_message_chat(username: str, message: str, history: str, default_a
     ]
 
     completion = client_groq.chat.completions.create(
-        model=model,
+        model=model_groq,
         messages=chat_history
     )
 
