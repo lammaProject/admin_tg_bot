@@ -36,6 +36,6 @@ async def client_model_handler(message: str):
                 "role": "user",
                 "content": config.system_instruction + message
             }])
-            return res.choices[0].message
+            return res.message
         except Exception as e:
             print(e)
