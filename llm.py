@@ -100,7 +100,7 @@ async def analyze_audio(audio: Audio, bot: Bot):
     await bot.download(audio.file_id, destination=buf)
     buf.seek(0)
 
-    prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали"
+    prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали. Напиши так же удачную строчку которая тебе понравилась."
 
     file = client_genai.files.upload(
         file=buf,
