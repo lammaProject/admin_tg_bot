@@ -24,20 +24,16 @@ image_client = InferenceClient(provider='hf-inference', api_key=HUGGING_TOKEN)
 
 async def client_model_handler(message: str):
     retries = 0
-    response = None
     model = 'gemini-2.5-flash'
     fallback_model = 'katanemo/Arch-Router-1.5B'
-
     while retries < 3:
         try:
             response = client.models.generate_content(model=model,
                                                       config=config,
                                                       contents=message)
+            return response.text
         except Exception as e:
             retries += 1
             model = fallback_model
 
-    if response is None:
-        return ""
-
-    return response.text
+    return "..."

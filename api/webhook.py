@@ -27,7 +27,7 @@ reactions = [
 
 
 async def process_update(update_data: dict):
-    bot = Bot(token=BOT_TOKEN)
+    bot = Bot(token=BOT_TOKEN)  # type: ignore[arg-type]
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
@@ -35,10 +35,12 @@ async def process_update(update_data: dict):
     async def message_handler(message: types.Message):
         if not message.text:
             return
-        if message.from_user.id == bot.id:
+        if message.from_user and message.from_user.id == bot.id:
             return
         
         text = await client_model_handler(message.text)
+        if not text:
+            return
         await message.reply(text)
         await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
 
