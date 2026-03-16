@@ -62,7 +62,7 @@ async def process_update(update_data: dict):
         if not message.audio:
             await message.reply("TEST@")
 
-        if message.audio:
+        if message.document and message.document.file_name.endswith(".mp3"):
             await message.reply("test")
             text = await analyze_audio(message.audio, bot)
             await message.reply(text)
