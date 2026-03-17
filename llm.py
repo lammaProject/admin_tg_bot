@@ -57,7 +57,10 @@ def get_history() -> str:
     return "\n".join(m.decode("utf-8") for m in messages)
 
 
-def generation_message_chat(history: str) -> str | None:
+def generation_message_chat(history: str, text: str | None) -> str | None:
+    if text:
+        history = history + "\n" + text
+
     chat_history: list[ChatCompletionMessageParam] = [
         cast(ChatCompletionMessageParam, {
             "role": "system",
@@ -131,6 +134,20 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             continue
 
     return "Друг соси)"
+
+
+async def transcribe_voice(file_id: str, bot: Bot) -> str:
+    buf = io.BytesIO()
+    await bot.download(file_id, destination=buf)
+    buf.seek(0)
+    history = get_history()
+
+    transcription = client_groq.audio.transcriptions.create(
+        file=("voice.ogg", buf),
+        model="whisper-large-v3-turbo",
+    )
+
+    return generation_message_chat(history, transcription.text)
 
 
 async def client_model_handler(message: Message, bot: Bot) -> str | None:

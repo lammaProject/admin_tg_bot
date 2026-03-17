@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
-from llm import client_model_handler, analyze_file
+from llm import client_model_handler, analyze_file, transcribe_voice
 
 load_dotenv()
 
@@ -54,6 +54,9 @@ async def process_update(update_data: dict):
 
     @dp.message()
     async def message_handler(message: types.Message):
+        if message.voice:
+            text = await transcribe_voice(message.voice.file_id, bot)
+            await message.reply(text)
         if message.photo:
             file = message.photo[-1]
             text = await analyze_file(file, bot)
