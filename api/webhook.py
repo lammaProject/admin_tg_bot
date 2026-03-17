@@ -55,6 +55,8 @@ async def process_update(update_data: dict):
     @dp.message()
     async def message_handler(message: types.Message):
         if message.photo:
+            file = message.photo[-1]
+            text = await analyze_file(file, bot)
             await message.reply("TEST")
         if message.sticker:
             text = await analyze_file(message.sticker, bot)

@@ -1,7 +1,7 @@
 import os
 
 from aiogram import Bot
-from aiogram.types import Audio, Sticker
+from aiogram.types import Audio, Sticker, PhotoSize
 from dotenv import load_dotenv
 from groq import Groq
 from groq.types.chat import ChatCompletionMessageParam
@@ -84,7 +84,7 @@ def generation_message():
     return message_res
 
 
-async def analyze_file(file: Audio | Sticker, bot: Bot):
+async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
     buf = io.BytesIO()
     await bot.download(file.file_id, destination=buf)
     buf.seek(0)
@@ -93,18 +93,17 @@ async def analyze_file(file: Audio | Sticker, bot: Bot):
 
     prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали. Напиши так же удачную строчку которая тебе понравилась. Только коротко в пару предложений." if is_audio else "Что на этом стикере? Опиши в одно предложение, смешно с подколом"
 
-    config = {"mime_type": "audio/mpeg", "display_name": file.file_name} if is_audio else {"mime_type": "image/webp"}
+    if isinstance(file, PhotoSize):
+        prompt = "Что на этой картинке? Опиши в одно предложение, смешно с подколом"
 
-    file_name = file.file_name if is_audio else "sticker"
-
-    uploaded = client_genai.files.upload(file=buf, config=config)
+    uploaded = client_genai.files.upload(file=buf)
 
     response = client_genai.models.generate_content(
         model='gemini-3-flash-preview',
         contents=[prompt, uploaded]
     )
 
-    add_message(f"FILE:{file_name}", response.text)
+    add_message(f"FILE:{file.file_name}", response.text)
 
     return response.text
 
