@@ -43,23 +43,14 @@ def add_message(username: str, message: str):
     cache[today].append(f"{username}: {message}")
 
 
-def parse_message(message_res: str) -> tuple[str, bool]:
-    text = message_res.replace("isAnswer:true", "").replace("isAnswer:false", "").strip()
-    return text, "isAnswer:true" in message_res
-
-
-def generation_message_chat(username: str, message: str, history: str, default_answer: bool) -> str | None:
+def generation_message_chat(history: str) -> str | None:
     chat_history: list[ChatCompletionMessageParam] = [
         cast(ChatCompletionMessageParam, {
             "role": "system",
             "content": f"""
-    {system}.{not default_answer and "Если считаешь что нужно принять участие в дискуссии то отправляй в конце isAnswer:true иначе isAnswer:false"}
+    {system}.
     История чата:
     """ + history
-        }),
-        cast(ChatCompletionMessageParam, {
-            "role": "user",
-            "content": f"{username}: {message}"
         })
     ]
 
@@ -68,14 +59,7 @@ def generation_message_chat(username: str, message: str, history: str, default_a
         messages=chat_history
     )
 
-    message_res = completion.choices[0].message.content
-    text, is_answer = parse_message(message_res)
-
-    if is_answer or default_answer:
-        return text
-
-    else:
-        return None
+    return completion.choices[0].message.content
 
 
 def generation_message():
@@ -133,6 +117,5 @@ async def client_model_handler(message: str, username: str | None = None) -> str
         return f"{username} запросил: {history}"
 
     if "@antonlamma_bot" in message:
-        return generation_message_chat(username, message, history, True)
-
-    return generation_message_chat(username, message, history, False)
+        return generation_message_chat(history)
+    return None
