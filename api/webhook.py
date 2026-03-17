@@ -57,7 +57,7 @@ async def process_update(update_data: dict):
         if message.photo:
             file = message.photo[-1]
             text = await analyze_file(file, bot)
-            await message.reply("TEST")
+            await message.reply(text)
         if message.sticker:
             text = await analyze_file(message.sticker, bot)
             await message.reply(text)
