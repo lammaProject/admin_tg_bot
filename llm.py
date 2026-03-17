@@ -137,6 +137,9 @@ async def client_model_handler(message: str, username: str | None = None) -> str
     add_message(username, message)
     history = get_history()
 
+    if message == "/refresh_history":
+        client_redis.flushdb()
+
     if message == "/sound":
         return generation_message()
 
