@@ -55,8 +55,9 @@ async def process_update(update_data: dict):
     @dp.message()
     async def message_handler(message: types.Message):
         if message.voice:
-            text = await transcribe_voice(message.voice.file_id, bot)
-            await message.reply(text)
+            text_chat, voice_short_text = await transcribe_voice(message.voice.file_id, bot)
+            await message.reply(text_chat)
+            await message.reply(f"Кратко\n{voice_short_text}")
         if message.photo:
             file = message.photo[-1]
             text = await analyze_file(file, bot)

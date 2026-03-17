@@ -115,7 +115,7 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             prompt = "Что на этом стикере? Опиши в одно предложение, смешно с подколом"
             file_name = f"{file.file_id}.webp"
             mime_type = "image/webp"
-        case _:
+        case PhotoSize():
             prompt = "Что на этой картинке? Опиши в одно предложение, смешно с подколом"
             file_name = f"{file.file_id}.jpg"
             mime_type = mimetypes.guess_type(file_name)[0] or "image/jpeg"
@@ -136,7 +136,7 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
     return "Друг соси)"
 
 
-async def transcribe_voice(file_id: str, bot: Bot) -> str:
+async def transcribe_voice(file_id: str, bot: Bot) -> tuple[str, str]:
     buf = io.BytesIO()
     await bot.download(file_id, destination=buf)
     buf.seek(0)
@@ -147,12 +147,58 @@ async def transcribe_voice(file_id: str, bot: Bot) -> str:
         model="whisper-large-v3-turbo",
     )
 
-    return generation_message_chat(history, transcription.text)
+    messages: list[ChatCompletionMessageParam] = [cast(ChatCompletionMessageParam, {
+        "role": "system",
+        "content": "Тебе надо вытащить из текста самое нужное, и кратко пересказать в пару пунктов"
+    }), cast(ChatCompletionMessageParam, {
+        "role": "user",
+        "content": transcription.text
+    })]
+
+    completion = client_groq.chat.completions.create(
+        model=model_groq,
+        messages=messages
+    )
+
+    message_res = completion.choices[0].message.content
+
+    today = date.today().isoformat()
+
+    client_redis.rpush(f"voice:{today}", f"{message_res}")
+    client_redis.expire(f"voice:{today}", 86400)
+
+    return generation_message_chat(history, transcription.text), message_res
+
+
+def generate_history_voices():
+    today = date.today().isoformat()
+
+    redis_messages = client_redis.lrange(f"chat:{today}", 0, -1)
+
+    messages: list[ChatCompletionMessageParam] = [cast(ChatCompletionMessageParam, {
+        "role": "system",
+        "content": "Тебе надо из полученной информации разбить кратко по пунктам о чем говорилось"
+    }), cast(ChatCompletionMessageParam, {
+        "role": "user",
+        "content": f"о чем говорили: {"\n".join(m.decode("utf-8") for m in redis_messages)}"
+    })]
+
+    completion = client_groq.chat.completions.create(
+        model=model_groq,
+        messages=messages
+    )
+
+    message_res = completion.choices[0].message.content
+
+    return message_res
 
 
 async def client_model_handler(message: Message, bot: Bot) -> str | None:
     add_message(message.from_user.username, message.text)
     history = get_history()
+
+    if message == "/voices":
+        return generate_history_voices()
 
     if message == "/refresh_history":
         client_redis.flushdb()
