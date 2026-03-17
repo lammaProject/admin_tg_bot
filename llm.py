@@ -53,7 +53,7 @@ def add_message(username: str, message: str):
 
 def get_history() -> str:
     today = date.today().isoformat()
-    messages = client_redis.lrange(f"chat:{today}", 0, -1)
+    messages = client_redis.lrange(f"chat:{today}", -10, -1)
     return "\n".join(m.decode("utf-8") for m in messages)
 
 
