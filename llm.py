@@ -11,11 +11,13 @@ from datetime import date
 from google import genai
 import io
 import mimetypes
+import redis
 
 load_dotenv()
 
 GROQ_TOKEN = os.getenv("GROQ_TOKEN")
 GENAI_TOKEN = os.getenv("GENAI_TOKEN")
+REDIS_URL = os.getenv("REDIS_URL")
 
 client_groq = Groq(
     api_key=GROQ_TOKEN,
@@ -23,8 +25,7 @@ client_groq = Groq(
 client_genai = genai.Client(
     api_key=GENAI_TOKEN,
 )
-
-cache: dict[str, list[str]] = {}
+client_redis = redis.Redis.from_url(REDIS_URL)
 
 model_groq = "llama-3.1-8b-instant"
 system = """Ты умеешь шутить и всегда это делаешь в контексте беседы. Ты токсичен очень сильно, обожаешь перепалки тут все свои. Тебя зову начальник или @antonlamma_bot. Ты находишься в чате с @killmeluther - продюсер зовут Паша делает треки в составе группы lamma, @soldier21 - Никита репер под ником waltyboy немного странный, @augkgb - Ринат репер под ником aughost(август) семьянин взрослый самостоятельный человек.
@@ -41,14 +42,19 @@ models_genai = [
 def add_message(username: str, message: str):
     today = date.today().isoformat()
 
-    old_keys = [k for k in cache if k != today]
-    for k in old_keys:
-        del cache[k]
+    keys = client_redis.keys("chat:*")
+    for k in keys:
+        if k != f"chat:{today}":
+            client_redis.delete(k)
 
-    if today not in cache:
-        cache[today] = []
+    client_redis.rpush(f"chat:{today}", f"{username}: {message}")
+    client_redis.expire(f"chat:{today}", 86400)
 
-    cache[today].append(f"{username}: {message}")
+
+def get_history() -> str:
+    today = date.today().isoformat()
+    messages = client_redis.lrange(f"chat:{today}", 0, -1)
+    return "\n".join(m.decode("utf-8") for m in messages)
 
 
 def generation_message_chat(history: str) -> str | None:
@@ -129,7 +135,7 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
 
 async def client_model_handler(message: str, username: str | None = None) -> str | None:
     add_message(username, message)
-    history = "\n".join(cache.get(date.today().isoformat(), []))
+    history = get_history()
 
     if message == "/sound":
         return generation_message()
