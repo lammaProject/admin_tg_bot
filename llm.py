@@ -51,7 +51,7 @@ def generation_message_chat(history: str) -> str | None:
     {system}.
     История чата:
     """ + history
-        }), (ChatCompletionMessageParam, {
+        }), cast(ChatCompletionMessageParam, {
             "role": "user",
             "content": "Ответь на последнее сообщение находят в контексте истории чата"
         })
