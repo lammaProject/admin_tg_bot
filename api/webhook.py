@@ -55,6 +55,7 @@ async def process_update(update_data: dict):
     @dp.message()
     async def message_handler(message: types.Message):
         if message.sticker:
+            await message.reply("test sticker")
             text = await analyze_file(message.sticker, bot)
             await message.reply(text)
         if message.audio:

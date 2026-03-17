@@ -51,7 +51,7 @@ def generation_message_chat(username: str, message: str, history: str, default_a
         cast(ChatCompletionMessageParam, {
             "role": "system",
             "content": f"""
-    {system}.Если считаешь что нужно принять участие в дискуссии то отправляй в конце isAnswer:true иначе isAnswer:false
+    {system}.{not default_answer and "Если считаешь что нужно принять участие в дискуссии то отправляй в конце isAnswer:true иначе isAnswer:false"}
     История чата:
     """ + history
         }),
