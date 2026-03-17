@@ -9,6 +9,7 @@ from typing import cast
 from datetime import date
 from google import genai
 import io
+import mimetypes
 
 load_dotenv()
 
@@ -96,7 +97,9 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
     if isinstance(file, PhotoSize):
         prompt = "Что на этой картинке? Опиши в одно предложение, смешно с подколом"
 
-    uploaded = client_genai.files.upload(file=buf)
+    mime_type, _ = mimetypes.guess_type(file.file_name)
+
+    uploaded = client_genai.files.upload(file=buf, config={"mime_type": mime_type, "display_name": file.file_name})
 
     response = client_genai.models.generate_content(
         model='gemini-3-flash-preview',
