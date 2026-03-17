@@ -170,27 +170,29 @@ async def transcribe_voice(file_id: str, bot: Bot) -> tuple[str, str]:
     return generation_message_chat(history, transcription.text), message_res
 
 
-def generate_history_voices():
+def generate_history_voices() -> str | None:
     today = date.today().isoformat()
-
     redis_messages = client_redis.lrange(f"chat:{today}", 0, -1)
 
-    messages: list[ChatCompletionMessageParam] = [cast(ChatCompletionMessageParam, {
-        "role": "system",
-        "content": "Тебе надо из полученной информации разбить кратко по пунктам о чем говорилось"
-    }), cast(ChatCompletionMessageParam, {
-        "role": "user",
-        "content": f"о чем говорили: {"\n".join(m.decode("utf-8") for m in redis_messages)}"
-    })]
+    joined = "\n".join(m.decode("utf-8") for m in redis_messages)
+
+    messages: list[ChatCompletionMessageParam] = [
+        cast(ChatCompletionMessageParam, {
+            "role": "system",
+            "content": "Тебе надо из полученной информации разбить кратко по пунктам о чем говорилось"
+        }),
+        cast(ChatCompletionMessageParam, {
+            "role": "user",
+            "content": f"о чем говорили: {joined}"
+        })
+    ]
 
     completion = client_groq.chat.completions.create(
         model=model_groq,
         messages=messages
     )
 
-    message_res = completion.choices[0].message.content
-
-    return message_res
+    return completion.choices[0].message.content
 
 
 async def client_model_handler(message: Message, bot: Bot) -> str | None:
