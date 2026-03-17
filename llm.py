@@ -100,7 +100,7 @@ async def analyze_file(message: Audio | Sticker, bot: Bot):
     await bot.download(message.file_id, destination=buf)
     buf.seek(0)
 
-    prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали. Напиши так же удачную строчку которая тебе понравилась. Только коротко в пару предложений." if file is isinstance(
+    prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали. Напиши так же удачную строчку которая тебе понравилась. Только коротко в пару предложений." if message is isinstance(
         message, Audio) else "Что на этом стикере? Опиши в одно предложение, смешно с подколом"
 
     config = {"mime_type": "audio/mpeg", "display_name": message.file_name} if message is isinstance(message,
