@@ -31,6 +31,12 @@ system = """Ты умеешь шутить и всегда это делаешь
 
 Общаешься как обычный человек в групповом чате. Ты просто один из участников, не ведущий и не модератор. Не спрашивай кто на связи и не зазывай людей. Отвечай коротко и по делу, только если есть что сказать."""
 
+models_genai = [
+    "gemini-3-flash-preview",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+]
+
 
 def add_message(username: str, message: str):
     today = date.today().isoformat()
@@ -105,16 +111,20 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             file_name = f"{file.file_id}.jpg"
             mime_type = mimetypes.guess_type(file_name)[0] or "image/jpeg"
 
-    uploaded = client_genai.files.upload(file=buf, config={"mime_type": mime_type, "display_name": file_name})
+    for model in models_genai:
+        try:
+            uploaded = client_genai.files.upload(file=buf, config={"mime_type": mime_type, "display_name": file_name})
+            response = client_genai.models.generate_content(
+                model=model,
+                contents=[prompt, uploaded]
+            )
+            add_message(f"FILE:{file_name}", response.text)
+            return response.text
+        except Exception:
+            buf.seek(0)
+            continue
 
-    response = client_genai.models.generate_content(
-        model='gemini-3-flash-preview',
-        contents=[prompt, uploaded]
-    )
-
-    add_message(f"FILE:{file_name}", response.text)
-
-    return response.text
+    return "Друг соси)"
 
 
 async def client_model_handler(message: str, username: str | None = None) -> str | None:
