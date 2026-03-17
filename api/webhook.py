@@ -54,6 +54,8 @@ async def process_update(update_data: dict):
 
     @dp.message()
     async def message_handler(message: types.Message):
+        if message.caption:
+            await message.reply("TEST")
         if message.sticker:
             text = await analyze_file(message.sticker, bot)
             await message.reply(text)
