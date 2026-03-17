@@ -172,7 +172,7 @@ async def transcribe_voice(file_id: str, bot: Bot) -> tuple[str, str]:
 
 def generate_history_voices() -> str | None:
     today = date.today().isoformat()
-    redis_messages = client_redis.lrange(f"chat:{today}", 0, -1)
+    redis_messages = client_redis.lrange(f"voice:{today}", 0, -1)
 
     joined = "\n".join(m.decode("utf-8") for m in redis_messages)
 
