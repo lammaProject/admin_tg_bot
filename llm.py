@@ -1,7 +1,7 @@
 import os
 
 from aiogram import Bot
-from aiogram.types import Audio, Sticker, PhotoSize
+from aiogram.types import Audio, Sticker, PhotoSize, Message
 from dotenv import load_dotenv
 from groq import Groq
 from groq.resources import Audio
@@ -133,8 +133,8 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
     return "Друг соси)"
 
 
-async def client_model_handler(message: str, username: str | None = None) -> str | None:
-    add_message(username, message)
+async def client_model_handler(message: Message, bot: Bot) -> str | None:
+    add_message(message.from_user.username, message.text)
     history = get_history()
 
     if message == "/refresh_history":
@@ -144,8 +144,9 @@ async def client_model_handler(message: str, username: str | None = None) -> str
         return generation_message()
 
     if message == "/history":
-        return f"{username} запросил: {history}"
+        return history
 
-    if "@antonlamma_bot" in message:
+    if "@antonlamma_bot" in message.text or (
+            message.reply_to_message and message.reply_to_message.from_user.id == bot.id):
         return generation_message_chat(history)
     return None

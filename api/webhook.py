@@ -70,7 +70,7 @@ async def process_update(update_data: dict):
         if message.from_user and message.from_user.id == bot.id:
             return
 
-        text = await client_model_handler(message.text, message.from_user.username)
+        text = await client_model_handler(message, bot)
         if not text or text is None:
             return
 
