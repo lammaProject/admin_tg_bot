@@ -44,7 +44,7 @@ def add_message(username: str, message: str):
 
     keys = client_redis.keys("chat:*")
     for k in keys:
-        if k != f"chat:{today}":
+        if k.decode("utf-8") != f"chat:{today}":  # декодируем bytes
             client_redis.delete(k)
 
     client_redis.rpush(f"chat:{today}", f"{username}: {message}")
