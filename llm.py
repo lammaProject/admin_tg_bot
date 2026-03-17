@@ -25,7 +25,9 @@ client_genai = genai.Client(
 cache: dict[str, list[str]] = {}
 
 model_groq = "llama-3.1-8b-instant"
-system = "Ты саунд продюсер тебя зовут Начальник или @antonlamma_bot, ты разбираешься в ключевых вещах связанных с музыкой, знаешь как правильно сводить и делать ее. Ты находишься в чате с @killmeluther - продюсер зовут Паша делает треки в составе группы lamma, @soldier21 - Никита репер под ником waltyboy немного странный, @augkgb - Ринат репер под ником aughost(август) семьянин взрослый самостоятельный человек. Общаешься как обычный человек."
+system = """Ты саунд продюсер тебя зовут Начальник или @antonlamma_bot, ты разбираешься в ключевых вещах связанных с музыкой, знаешь как правильно сводить и делать ее. Ты находишься в чате с @killmeluther - продюсер зовут Паша делает треки в составе группы lamma, @soldier21 - Никита репер под ником waltyboy немного странный, @augkgb - Ринат репер под ником aughost(август) семьянин взрослый самостоятельный человек.
+
+Общаешься как обычный человек в групповом чате. Ты просто один из участников, не ведущий и не модератор. Не спрашивай кто на связи и не зазывай людей. Отвечай коротко и по делу, только если есть что сказать."""
 
 
 def add_message(username: str, message: str):
@@ -95,29 +97,27 @@ def generation_message():
     return message_res
 
 
-async def analyze_file(message: Audio | Sticker, bot: Bot):
+async def analyze_file(file: Audio | Sticker, bot: Bot):
     buf = io.BytesIO()
-    await bot.download(message.file_id, destination=buf)
+    await bot.download(file.file_id, destination=buf)
     buf.seek(0)
 
-    prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали. Напиши так же удачную строчку которая тебе понравилась. Только коротко в пару предложений." if message is isinstance(
-        message, Audio) else "Что на этом стикере? Опиши в одно предложение, смешно с подколом"
+    is_audio = isinstance(file, Audio)
 
-    config = {"mime_type": "audio/mpeg", "display_name": message.file_name} if message is isinstance(message,
-                                                                                                     Audio) else {
-        "mime_type": "image/webp"}
+    prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали. Напиши так же удачную строчку которая тебе понравилась. Только коротко в пару предложений." if is_audio else "Что на этом стикере? Опиши в одно предложение, смешно с подколом"
 
-    file = client_genai.files.upload(
-        file=buf,
-        config=config
-    )
+    config = {"mime_type": "audio/mpeg", "display_name": file.file_name} if is_audio else {"mime_type": "image/webp"}
+
+    file_name = file.file_name if is_audio else "sticker"
+
+    uploaded = client_genai.files.upload(file=buf, config=config)
 
     response = client_genai.models.generate_content(
         model='gemini-3-flash-preview',
-        contents=[prompt, file]
+        contents=[prompt, uploaded]
     )
 
-    add_message(f"STICKER:{file.file_name}", response.text)
+    add_message(f"FILE:{file_name}", response.text)
 
     return response.text
 
