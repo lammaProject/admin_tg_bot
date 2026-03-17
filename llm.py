@@ -1,7 +1,7 @@
 import os
 
 from aiogram import Bot
-from aiogram.types import Audio
+from aiogram.types import Audio, Sticker
 from dotenv import load_dotenv
 from groq import Groq
 from groq.types.chat import ChatCompletionMessageParam
@@ -51,7 +51,7 @@ def generation_message_chat(username: str, message: str, history: str, default_a
         cast(ChatCompletionMessageParam, {
             "role": "system",
             "content": f"""
-    ${system}.Если считаешь что нужно принять участие в дискуссии то отправляй в конце isAnswer:true иначе isAnswer:false
+    {system}.Если считаешь что нужно принять участие в дискуссии то отправляй в конце isAnswer:true иначе isAnswer:false
     История чата:
     """ + history
         }),
@@ -79,7 +79,7 @@ def generation_message_chat(username: str, message: str, history: str, default_a
 def generation_message():
     messages: list[ChatCompletionMessageParam] = [cast(ChatCompletionMessageParam, {
         "role": "system",
-        "content": f"${system}"
+        "content": f"{system}"
     }), cast(ChatCompletionMessageParam, {
         "role": "user",
         "content": f"Назови какой нибудь факт как лучше всего сводить или писать музыку или сочинять"
@@ -95,16 +95,21 @@ def generation_message():
     return message_res
 
 
-async def analyze_audio(audio: Audio, bot: Bot):
+async def analyze_file(message: Audio | Sticker, bot: Bot):
     buf = io.BytesIO()
-    await bot.download(audio.file_id, destination=buf)
+    await bot.download(message.file_id, destination=buf)
     buf.seek(0)
 
-    prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали. Напиши так же удачную строчку которая тебе понравилась."
+    prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали. Напиши так же удачную строчку которая тебе понравилась. Только коротко в пару предложений." if file is isinstance(
+        message, Audio) else "Что на этом стикере? Опиши в одно предложение, смешно с подколом"
+
+    config = {"mime_type": "audio/mpeg", "display_name": message.file_name} if message is isinstance(message,
+                                                                                                     Audio) else {
+        "mime_type": "image/webp"}
 
     file = client_genai.files.upload(
         file=buf,
-        config={"mime_type": "audio/mpeg", "display_name": audio.file_name}
+        config=config
     )
 
     response = client_genai.models.generate_content(
@@ -112,18 +117,20 @@ async def analyze_audio(audio: Audio, bot: Bot):
         contents=[prompt, file]
     )
 
+    add_message(f"STICKER:{file.file_name}", response.text)
+
     return response.text
 
 
 async def client_model_handler(message: str, username: str | None = None) -> str | None:
     add_message(username, message)
-    history = "".join(cache.get(date.today().isoformat(), []))
+    history = "\n".join(cache.get(date.today().isoformat(), []))
 
     if message == "/sound":
         return generation_message()
 
     if message == "/history":
-        return f"${username} запросил: ${history}"
+        return f"{username} запросил: {history}"
 
     if "@antonlamma_bot" in message:
         return generation_message_chat(username, message, history, True)
