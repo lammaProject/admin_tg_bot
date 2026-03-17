@@ -4,6 +4,7 @@ from aiogram import Bot
 from aiogram.types import Audio, Sticker, PhotoSize
 from dotenv import load_dotenv
 from groq import Groq
+from groq.resources import Audio
 from groq.types.chat import ChatCompletionMessageParam
 from typing import cast
 from datetime import date
@@ -90,23 +91,28 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
     await bot.download(file.file_id, destination=buf)
     buf.seek(0)
 
-    is_audio = isinstance(file, Audio)
+    match file:
+        case Audio():
+            prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали. Напиши так же удачную строчку которая тебе понравилась. Только коротко в пару предложений"
+            file_name = file.file_name or f"{file.file_id}.mp3"
+            mime_type = "audio/mpeg"
+        case Sticker():
+            prompt = "Что на этом стикере? Опиши в одно предложение, смешно с подколом"
+            file_name = f"{file.file_id}.webp"
+            mime_type = "image/webp"
+        case _:
+            prompt = "Что на этой картинке? Опиши в одно предложение, смешно с подколом"
+            file_name = f"{file.file_id}.jpg"
+            mime_type = mimetypes.guess_type(file_name)[0] or "image/jpeg"
 
-    prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали. Напиши так же удачную строчку которая тебе понравилась. Только коротко в пару предложений." if is_audio else "Что на этом стикере? Опиши в одно предложение, смешно с подколом"
-
-    if isinstance(file, PhotoSize):
-        prompt = "Что на этой картинке? Опиши в одно предложение, смешно с подколом"
-
-    mime_type, _ = mimetypes.guess_type(file.file_name)
-
-    uploaded = client_genai.files.upload(file=buf, config={"mime_type": mime_type, "display_name": file.file_name})
+    uploaded = client_genai.files.upload(file=buf, config={"mime_type": mime_type, "display_name": file_name})
 
     response = client_genai.models.generate_content(
         model='gemini-3-flash-preview',
         contents=[prompt, uploaded]
     )
 
-    add_message(f"FILE:{file.file_name}", response.text)
+    add_message(f"FILE:{file_name}", response.text)
 
     return response.text
 
