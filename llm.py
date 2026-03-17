@@ -149,7 +149,7 @@ async def transcribe_voice(file_id: str, bot: Bot) -> tuple[str, str]:
 
     messages: list[ChatCompletionMessageParam] = [cast(ChatCompletionMessageParam, {
         "role": "system",
-        "content": "Тебе надо вытащить из текста самое нужное, и кратко пересказать в пару пунктов"
+        "content": "Тебе надо вытащить из текста самое нужное, и кратко пересказать в пару пунктов, не надо отвечать, только краткий пересказ"
     }), cast(ChatCompletionMessageParam, {
         "role": "user",
         "content": transcription.text
