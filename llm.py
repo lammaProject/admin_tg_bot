@@ -199,16 +199,16 @@ async def client_model_handler(message: Message, bot: Bot) -> str | None:
     add_message(message.from_user.username, message.text)
     history = get_history()
 
-    if message == "/voices":
+    if message.text == "/voices":
         return generate_history_voices()
 
-    if message == "/refresh_history":
+    if message.text == "/refresh_history":
         client_redis.flushdb()
 
-    if message == "/sound":
+    if message.text == "/sound":
         return generation_message()
 
-    if message == "/history":
+    if message.text == "/history":
         return history
 
     if "@antonlamma_bot" in message.text or (
