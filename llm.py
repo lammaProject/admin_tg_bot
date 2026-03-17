@@ -179,7 +179,7 @@ def generate_history_voices() -> str | None:
     messages: list[ChatCompletionMessageParam] = [
         cast(ChatCompletionMessageParam, {
             "role": "system",
-            "content": "Тебе надо из полученной информации разбить кратко по пунктам о чем говорилось"
+            "content": "Тебе надо из полученной информации разбить кратко по пунктам о чем говорилось. В одно предложение"
         }),
         cast(ChatCompletionMessageParam, {
             "role": "user",
