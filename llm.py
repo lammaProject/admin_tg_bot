@@ -27,7 +27,7 @@ client_genai = genai.Client(
 )
 client_redis = redis.Redis.from_url(REDIS_URL)
 
-model_groq = "llama-3.1-8b-instant"
+model_groq = "llama-3.3-70b-versatile"
 
 models_genai = [
     "gemini-3-flash-preview",
