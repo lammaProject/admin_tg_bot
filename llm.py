@@ -28,9 +28,7 @@ client_genai = genai.Client(
 client_redis = redis.Redis.from_url(REDIS_URL)
 
 model_groq = "llama-3.1-8b-instant"
-system = """Ты умеешь шутить и всегда это делаешь в контексте беседы. Ты токсичен очень сильно, обожаешь перепалки тут все свои. Тебя зову начальник или @antonlamma_bot но твое полное имя Вадим. Ты находишься в чате с @killmeluther - продюсер зовут Паша делает треки в составе группы lamma, @soldier21 - Никита репер под ником waltyboy немного странный он твой злейший враг, @augkgb - Ринат репер под ником aughost(август) семьянин взрослый самостоятельный человек.
-
-Общаешься как обычный человек в групповом чате. Ты просто один из участников, не ведущий и не модератор. Не спрашивай кто на связи и не зазывай людей. Отвечай коротко и по делу, только если есть что сказать."""
+system = ""
 
 models_genai = [
     "gemini-3-flash-preview",
@@ -51,27 +49,26 @@ def add_message(username: str, message: str):
     client_redis.expire(f"chat:{today}", 86400)
 
 
-def get_history() -> str:
+def get_history() -> list[dict[str, str]]:
     today = date.today().isoformat()
     messages = client_redis.lrange(f"chat:{today}", -5, -1)
-    return "\n".join(m.decode("utf-8") for m in messages)
+    result = [
+        {"role": "user", "content": item.decode("utf-8")} for item in messages
+    ]
+    return result
 
 
-def generation_message_chat(history: str, text: str | None = None) -> str | None:
+def generation_message_chat(history: list[dict[str, str]], text: str | None = None) -> str | None:
     if text:
-        history = history + "\n" + text
+        history.append({"role": "user", "content": text})
 
     chat_history: list[ChatCompletionMessageParam] = [
         cast(ChatCompletionMessageParam, {
             "role": "system",
             "content": f"""
     {system}.
-    История чата:
-    """ + history
-        }), cast(ChatCompletionMessageParam, {
-            "role": "user",
-            "content": "Ответь на последнее сообщение находят в контексте истории чата"
-        })
+    """
+        }), *history
     ]
 
     completion = client_groq.chat.completions.create(
@@ -125,7 +122,9 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             uploaded = client_genai.files.upload(file=buf, config={"mime_type": mime_type, "display_name": file_name})
             response = client_genai.models.generate_content(
                 model=model,
-                contents=[prompt, uploaded]
+                contents=[
+                    "https://www.instagram.com/walty__boy/  посмотри фото и сравни с тем которое пришло, это тот же человек?",
+                    uploaded]
             )
             add_message(f"FILE:{file_name}", response.text)
             return response.text
@@ -149,7 +148,7 @@ async def transcribe_voice(file_id: str, bot: Bot) -> tuple[str, str]:
 
     messages: list[ChatCompletionMessageParam] = [cast(ChatCompletionMessageParam, {
         "role": "system",
-        "content": "Тебе надо вытащить из текста самое нужное, и кратко пересказать в пару пунктов, не надо отвечать, только краткий пересказ"
+        "content": f"{system} Тебе надо вытащить из текста самое нужное, и кратко пересказать в пару пунктов, не надо отвечать, только краткий пересказ"
     }), cast(ChatCompletionMessageParam, {
         "role": "user",
         "content": transcription.text
@@ -170,46 +169,15 @@ async def transcribe_voice(file_id: str, bot: Bot) -> tuple[str, str]:
     return generation_message_chat(history, transcription.text), message_res
 
 
-def generate_history_voices() -> str | None:
-    today = date.today().isoformat()
-    redis_messages = client_redis.lrange(f"voice:{today}", 0, -1)
-
-    joined = "\n".join(m.decode("utf-8") for m in redis_messages)
-
-    messages: list[ChatCompletionMessageParam] = [
-        cast(ChatCompletionMessageParam, {
-            "role": "system",
-            "content": "Тебе надо из полученной информации разбить кратко по пунктам о чем говорилось. В одно предложение. И в конце дать свое кратко мнение в одлно предложение с сарказмом"
-        }),
-        cast(ChatCompletionMessageParam, {
-            "role": "user",
-            "content": f"о чем говорили: {joined}"
-        })
-    ]
-
-    completion = client_groq.chat.completions.create(
-        model=model_groq,
-        messages=messages
-    )
-
-    return completion.choices[0].message.content
-
-
 async def client_model_handler(message: Message, bot: Bot) -> str | None:
     add_message(message.from_user.username, message.text)
     history = get_history()
-
-    if message.text == "/voices":
-        return generate_history_voices()
 
     if message.text == "/refresh_history":
         client_redis.flushdb()
 
     if message.text == "/sound":
         return generation_message()
-
-    if message.text == "/history":
-        return history
 
     if "@antonlamma_bot" in message.text or (
             message.reply_to_message and message.reply_to_message.from_user.id == bot.id):
