@@ -28,7 +28,6 @@ client_genai = genai.Client(
 client_redis = redis.Redis.from_url(REDIS_URL)
 
 model_groq = "llama-3.1-8b-instant"
-system = ""
 
 models_genai = [
     "gemini-3-flash-preview",
@@ -37,7 +36,12 @@ models_genai = [
 ]
 
 chats_peoples = [{"имя": "Ринат @augkgb", "выглядит": "https://www.instagram.com/augkgb/"},
-                 {"имя": "Никита @soldier21", "выглядит": "https://www.instagram.com/walty__boy/"}]
+                 {"имя": "Никита @soldier21", "выглядит": "https://www.instagram.com/walty__boy/"},
+                 {"имя": "Паша  @killmeluther", "выглядит": "неизвестно"}]
+
+chats_peoples_text = "\n".join([f"{p['имя']} - {p['выглядит']}" for p in chats_peoples])
+
+system = f"Запомни этих людей {chats_peoples_text}, отвечай смешно, тебя зовут Начальник ты токсичен и агрессивен. Ты в контексте чата, отвечай на последнее сообщение"
 
 
 def add_message(username: str, message: str):
@@ -68,9 +72,7 @@ def generation_message_chat(history: list[dict[str, str]], text: str | None = No
     chat_history: list[ChatCompletionMessageParam] = [
         cast(ChatCompletionMessageParam, {
             "role": "system",
-            "content": f"""
-    {system}.
-    """
+            "content": f"{system}"
         }), *history
     ]
 
@@ -120,15 +122,13 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             file_name = f"{file.file_id}.jpg"
             mime_type = mimetypes.guess_type(file_name)[0] or "image/jpeg"
 
-    result = "\n".join([f"{p['имя']} - {p['выглядит']}" for p in chats_peoples])
-
     for model in models_genai:
         try:
             uploaded = client_genai.files.upload(file=buf, config={"mime_type": mime_type, "display_name": file_name})
             response = client_genai.models.generate_content(
                 model=model,
                 contents=[
-                    f"{prompt} так же обрати внимание отправленное фото похоже на кого то из этих людей, если да, то обрати на это внимание когда будешь шутить {result}",
+                    f"{prompt} так же обрати внимание - отправленное фото похоже на кого то из этих людей, если да, то пошути над этим {chats_peoples_text}",
                     uploaded]
             )
             add_message(f"FILE:{file_name}", response.text)
