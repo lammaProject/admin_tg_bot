@@ -36,6 +36,9 @@ models_genai = [
     "gemini-2.5-flash-lite",
 ]
 
+chats_peoples = [{"имя": "Ринат @augkgb", "выглядит": "https://www.instagram.com/augkgb/"},
+                 {"имя": "Никита @soldier21", "выглядит": "https://www.instagram.com/walty__boy/"}]
+
 
 def add_message(username: str, message: str):
     today = date.today().isoformat()
@@ -117,13 +120,15 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             file_name = f"{file.file_id}.jpg"
             mime_type = mimetypes.guess_type(file_name)[0] or "image/jpeg"
 
+    result = "\n".join([f"{p['имя']} - {p['выглядит']}" for p in chats_peoples])
+
     for model in models_genai:
         try:
             uploaded = client_genai.files.upload(file=buf, config={"mime_type": mime_type, "display_name": file_name})
             response = client_genai.models.generate_content(
                 model=model,
                 contents=[
-                    "https://www.instagram.com/walty__boy/  посмотри фото и сравни с тем которое пришло, это тот же человек?",
+                    f"{prompt} так же обрати внимание отправленное фото похоже на кого то из этих людей, если да, то обрати на это внимание когда будешь шутить {result}",
                     uploaded]
             )
             add_message(f"FILE:{file_name}", response.text)
@@ -135,38 +140,38 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
     return "Друг соси)"
 
 
-async def transcribe_voice(file_id: str, bot: Bot) -> tuple[str, str]:
-    buf = io.BytesIO()
-    await bot.download(file_id, destination=buf)
-    buf.seek(0)
-    history = get_history()
-
-    transcription = client_groq.audio.transcriptions.create(
-        file=("voice.ogg", buf),
-        model="whisper-large-v3-turbo",
-    )
-
-    messages: list[ChatCompletionMessageParam] = [cast(ChatCompletionMessageParam, {
-        "role": "system",
-        "content": f"{system} Тебе надо вытащить из текста самое нужное, и кратко пересказать в пару пунктов, не надо отвечать, только краткий пересказ"
-    }), cast(ChatCompletionMessageParam, {
-        "role": "user",
-        "content": transcription.text
-    })]
-
-    completion = client_groq.chat.completions.create(
-        model=model_groq,
-        messages=messages
-    )
-
-    message_res = completion.choices[0].message.content
-
-    today = date.today().isoformat()
-
-    client_redis.rpush(f"voice:{today}", f"{message_res}")
-    client_redis.expire(f"voice:{today}", 86400)
-
-    return generation_message_chat(history, transcription.text), message_res
+# async def transcribe_voice(file_id: str, bot: Bot) -> tuple[str, str]:
+#     buf = io.BytesIO()
+#     await bot.download(file_id, destination=buf)
+#     buf.seek(0)
+#     history = get_history()
+#
+#     transcription = client_groq.audio.transcriptions.create(
+#         file=("voice.ogg", buf),
+#         model="whisper-large-v3-turbo",
+#     )
+#
+#     messages: list[ChatCompletionMessageParam] = [cast(ChatCompletionMessageParam, {
+#         "role": "system",
+#         "content": f"{system} Тебе надо вытащить из текста самое нужное, и кратко пересказать в пару пунктов, не надо отвечать, только краткий пересказ"
+#     }), cast(ChatCompletionMessageParam, {
+#         "role": "user",
+#         "content": transcription.text
+#     })]
+#
+#     completion = client_groq.chat.completions.create(
+#         model=model_groq,
+#         messages=messages
+#     )
+#
+#     message_res = completion.choices[0].message.content
+#
+#     today = date.today().isoformat()
+#
+#     client_redis.rpush(f"voice:{today}", f"{message_res}")
+#     client_redis.expire(f"voice:{today}", 86400)
+#
+#     return generation_message_chat(history, transcription.text), message_res
 
 
 async def client_model_handler(message: Message, bot: Bot) -> str | None:
