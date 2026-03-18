@@ -128,7 +128,7 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             response = client_genai.models.generate_content(
                 model=model,
                 contents=[
-                    f"{prompt} так же обрати внимание - отправленное фото похоже на кого то из этих людей, если да, то пошути над этим {chats_peoples_text}",
+                    f"{prompt} так же обрати внимание - отправленное фото похоже на кого то из этих людей, если да, то пошути над этим в стиле Никита конечно выглядит ужасно или Ринат на этом фото {chats_peoples_text}",
                     uploaded]
             )
             add_message(f"FILE:{file_name}", response.text)
