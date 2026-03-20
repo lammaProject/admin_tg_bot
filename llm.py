@@ -128,7 +128,7 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             people_images = []
 
             if not images_scan:
-                for i in range(1):
+                for i in range(4):
                     file_people = f"./images/people{i}.png"
                     people_image = client_genai.files.upload(file=file_people,
                                                              config={"mime_type": mime_type,
@@ -148,10 +148,12 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
                 contents=[
                     "Это как выглядит Антон из чата просто запомни:",
                     people_images[0],
-                    # "Это как выглядит Никита из чата просто запомни:",
-                    # people_images[1],
-                    # "Это как выглядит Ринат из чата просто запомни:",
-                    # people_images[2],
+                    "Это как выглядит Ринат из чата просто запомни:",
+                    people_images[1],
+                    "Это как выглядит Никита из чата просто запомни:",
+                    people_images[2],
+                    "Это как выглядит Паша из чата просто запомни:",
+                    people_images[3],
                     "Это фото которое нужно проанализировать и сравнить с людьми выше (если люди выше есть на этом фото):",
                     uploaded,
                     f"{prompt} {chats_peoples_text}"
