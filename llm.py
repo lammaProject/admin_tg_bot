@@ -160,6 +160,7 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             return response.text
         except Exception:
             buf.seek(0)
+            return Exception
             continue
 
     return "Друг соси)"
