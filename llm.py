@@ -138,7 +138,8 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
                     people_images.append(people_image)
             else:
                 for item in images_scan:
-                    people_images.append(item)
+                    people_image = client_genai.files.get(name=item.decode())
+                    people_images.append(people_image)
 
             uploaded = client_genai.files.upload(file=buf, config={"mime_type": mime_type, "display_name": file_name})
 
