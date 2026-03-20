@@ -128,7 +128,7 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             people_images = []
 
             if not images_scan:
-                for i in range(0):
+                for i in range(1):
                     file_people = f"./images/people{i}.png"
                     people_image = client_genai.files.upload(file=file_people,
                                                              config={"mime_type": mime_type,
