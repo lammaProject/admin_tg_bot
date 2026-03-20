@@ -158,9 +158,9 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             )
 
             return response.text
-        except Exception:
+        except Exception as e:
             buf.seek(0)
-            return Exception
+            return str(e)
             continue
 
     return "Друг соси)"
