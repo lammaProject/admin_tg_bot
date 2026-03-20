@@ -35,9 +35,9 @@ models_genai = [
     "gemini-2.5-flash-lite",
 ]
 
-chats_peoples = [{"имя": "Ринат @augkgb", "выглядит": "https://www.instagram.com/augkgb/"},
-                 {"имя": "Никита @soldier21", "выглядит": "https://www.instagram.com/walty__boy/"},
-                 {"имя": "Паша  @killmeluther", "выглядит": "неизвестно"}]
+chats_peoples = [{"имя": "Ринат @augkgb"},
+                 {"имя": "Никита @soldier21"},
+                 {"имя": "Паша  @killmeluther"}, {"имя": "Антон @анонимный"}]
 
 chats_peoples_text = "\n".join([f"{p['имя']} - {p['выглядит']}" for p in chats_peoples])
 
@@ -124,14 +124,39 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
 
     for model in models_genai:
         try:
+            images_scan = client_redis.lrange("images", 0, -1)
+            people_images = []
+
+            if not images_scan:
+                for i in range(2):
+                    file_people = f"./images/people{i}.png"
+                    people_image = client_genai.files.upload(file=file_people,
+                                                             config={"mime_type": mime_type,
+                                                                     "display_name": "people_image.png"})
+                    client_redis.rpush(f"images", people_image.name)
+                    client_redis.expire(f"images", 108000)
+                    people_images.append(people_image)
+            else:
+                for item in images_scan:
+                    people_images.append(item)
+
             uploaded = client_genai.files.upload(file=buf, config={"mime_type": mime_type, "display_name": file_name})
+
             response = client_genai.models.generate_content(
                 model=model,
                 contents=[
-                    f"{prompt} так же обрати внимание - отправленное фото похоже на кого то из этих людей, если да, то пошути над этим в стиле Никита на этом фото или Ринат на этом фото вообщем кого узнаешь из списка если узнаешь {chats_peoples_text}",
-                    uploaded]
+                    "Это как выглядит Антон из чата просто запомни:",
+                    people_images[0],
+                    # "Это как выглядит Никита из чата просто запомни:",
+                    # people_images[1],
+                    # "Это как выглядит Ринат из чата просто запомни:",
+                    # people_images[2],
+                    "Это фото которое нужно проанализировать и сравнить с людьми выше (если люди выше есть на этом фото):",
+                    uploaded,
+                    f"{prompt} {chats_peoples_text}"
+                ]
             )
-            add_message(f"FILE:{file_name}", response.text)
+
             return response.text
         except Exception:
             buf.seek(0)
