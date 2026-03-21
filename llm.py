@@ -1,5 +1,4 @@
 import os
-
 from aiogram import Bot
 from aiogram.types import Audio, Sticker, PhotoSize, Message
 from dotenv import load_dotenv
@@ -41,7 +40,7 @@ chats_peoples = [{"имя": "Ринат @augkgb"},
 
 chats_peoples_text = "\n".join([f"{p['имя']}" for p in chats_peoples])
 
-system = f"Запомни этих людей {chats_peoples_text}, отвечай смешно, тебя зовут Начальник ты токсичен и агрессивен. Ты в контексте чата, отвечай на последнее сообщение. Отвечай как человек небольшими предложениями словно ты в чате на твиче. ты внутри чата не надо писать словно ты чат."
+system = f"Запомни этих людей {chats_peoples_text}, отвечай смешно, тебя зовут Начальник ты токсичен и агрессивен. Ты в контексте чата, отвечай на последнее сообщение. Отвечай как человек небольшими предложениями словно ты в чате например твиче. ты внутри чата не надо писать словно ты чат."
 
 
 def add_message(username: str, message: str):
@@ -65,15 +64,16 @@ def get_history() -> list[dict[str, str]]:
     return result
 
 
-def generation_message_chat(history: list[dict[str, str]], text: str | None = None) -> str | None:
-    if text:
-        history.append({"role": "user", "content": text})
+def generation_message_chat(text: str | None = None) -> str | None:
+    history = get_history()
+
+    user_message = [{"role": "user", "content": text}] if text else history
 
     chat_history: list[ChatCompletionMessageParam] = [
         cast(ChatCompletionMessageParam, {
             "role": "system",
             "content": f"{system}"
-        }), *history
+        }), *user_message
     ]
 
     completion = client_groq.chat.completions.create(
@@ -205,7 +205,6 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
 
 async def client_model_handler(message: Message, bot: Bot) -> str | None:
     add_message(message.from_user.username, message.text)
-    history = get_history()
 
     if message.text == "/refresh_history":
         client_redis.flushdb()
@@ -215,5 +214,5 @@ async def client_model_handler(message: Message, bot: Bot) -> str | None:
 
     if "@antonlamma_bot" in message.text or (
             message.reply_to_message and message.reply_to_message.from_user.id == bot.id):
-        return generation_message_chat(history)
+        return generation_message_chat()
     return None
