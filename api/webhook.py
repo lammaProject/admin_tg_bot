@@ -104,7 +104,7 @@ async def process_update(update_data: dict):
         await message.reply(text)
         await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
 
-        if any(p.get("имя", "") in message.text for p in OTHER_BOTS):
+        if any(p.get("имя", "") in text for p in OTHER_BOTS):
             await ping_bot2(text, message.chat.id)
 
     try:
