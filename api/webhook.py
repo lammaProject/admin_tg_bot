@@ -40,9 +40,18 @@ async def ping_bot2(text: str, chat_id: int):
     async with httpx.AsyncClient() as client:
         response = await client.post(
             f"{BOT2_WEBHOOK_URL}/api/webhook",
-            json={...}
+            json={
+                "update_id": 999,
+                "message": {
+                    "message_id": 1,
+                    "from": {"id": 1, "is_bot": False, "first_name": NAME_BOT},
+                    "chat": {"id": int(chat_id), "type": "supergroup"},
+                    "date": 0,
+                    "text": f"[BOT_PING] {text}"
+                }
+            }
         )
-        logger.info(f"Ответ: {response.status_code} {response.text}")
+        logger.info(f"Ответ: {response.status_code}")
 
 
 class handler(BaseHTTPRequestHandler):
