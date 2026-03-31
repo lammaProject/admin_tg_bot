@@ -46,7 +46,7 @@ async def ping_bot2(text: str, chat_id: int):
                     "from": {"id": 1, "is_bot": False, "first_name": NAME_BOT},
                     "chat": {"id": chat_id, "type": "supergroup"},
                     "date": 0,
-                    "text": text
+                    "text": f"[BOT_PING] {text}"
                 }
             }
         )
@@ -80,7 +80,10 @@ async def process_update(update_data: dict):
 
     @dp.message()
     async def message_handler(message: types.Message):
-        if message.from_user and message.from_user.id == bot.id:
+        if message.text and message.text.startswith("[BOT_PING]"):
+            # убираем префикс и обрабатываем без ping_bot2
+            clean_text = message.text.replace("[BOT_PING] ", "")
+            # обработка...
             return
         logger.info(f"text: {message.text!r}, entities: {message.entities}")
         if NAME_BOT in message.text or NICK_BOT in message.text or (
