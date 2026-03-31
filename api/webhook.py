@@ -106,7 +106,7 @@ async def process_update(update_data: dict):
         mentioned = (
                 NAME_BOT.lower() in text.lower() or
                 NICK_BOT.lower() in text.lower() or
-                (message.reply_to_message and message.reply_to_message.from_user.id == bot.id)
+                message.reply_to_message
         )
 
         if mentioned:
