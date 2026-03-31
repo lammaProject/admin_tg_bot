@@ -16,6 +16,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+NAME_BOT = os.getenv("NAME_BOT")
 
 reactions = [
     "👍", "👎", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢",
@@ -54,16 +55,18 @@ async def process_update(update_data: dict):
 
     @dp.message()
     async def message_handler(message: types.Message):
-        if message.photo:
-            file = message.photo[-1]
-            text = await analyze_file(file, bot)
-            await message.reply(text)
-        if message.sticker:
-            text = await analyze_file(message.sticker, bot)
-            await message.reply(text)
-        if message.audio:
-            text = await analyze_file(message.audio, bot)
-            await message.reply(text)
+        if NAME_BOT in message.text or (
+                message.reply_to_message and message.reply_to_message.from_user.id == bot.id):
+            if message.photo:
+                file = message.photo[-1]
+                text = await analyze_file(file, bot)
+                await message.reply(text)
+            if message.sticker:
+                text = await analyze_file(message.sticker, bot)
+                await message.reply(text)
+            if message.audio:
+                text = await analyze_file(message.audio, bot)
+                await message.reply(text)
 
         if not message.text:
             return

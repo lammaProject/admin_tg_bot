@@ -17,6 +17,10 @@ load_dotenv()
 GROQ_TOKEN = os.getenv("GROQ_TOKEN")
 GENAI_TOKEN = os.getenv("GENAI_TOKEN")
 REDIS_URL = os.getenv("REDIS_URL")
+SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT")
+NAME_BOT = os.getenv("NAME_BOT")
+NICK_BOT = os.getenv("NICK_BOT")
+OTHER_BOTS = os.getenv("OTHER_BOTS", "[]")
 
 client_groq = Groq(
     api_key=GROQ_TOKEN,
@@ -36,11 +40,12 @@ models_genai = [
 
 chats_peoples = [{"имя": "Ринат ник: @augkgb"},
                  {"имя": "Никита ник: @soldier21"},
-                 {"имя": "Паша  ник: @killmeluther"}, {"имя": "Антон ник: @анонимный"}]
+                 {"имя": "Паша  ник: @killmeluther"}, {"имя": "Антон ник: @анонимный"},
+                 {"имя": f"{NAME_BOT} ник: {NICK_BOT}"}, *OTHER_BOTS]
 
 chats_peoples_text = "\n".join([f"{p['имя']}" for p in chats_peoples])
 
-system = f"Запомни этих людей {chats_peoples_text}, отвечай смешно, тебя зовут Викуля Начальница ты токсичная bitch. Твой ник в чате @antonlamma_bot. Ты в контексте чата, отвечай на последнее сообщение. Отвечай как человек небольшими предложениями."
+system = f"Запомни этих людей {chats_peoples_text}. Ты в контексте чата, отвечай на последнее сообщение. Отвечай как человек небольшими предложениями. {SYSTEM_PROMPT}"
 
 
 def add_message(username: str, message: str):
@@ -67,7 +72,7 @@ def get_history() -> list[dict[str, str]]:
 def generation_message_chat(text: str | None = None) -> str | None:
     history = get_history()
 
-    user_message = [{"role": "user", "content": text}] if text else history
+    user_message = [*history, {"role": "user", "content": text}] if text else history
 
     chat_history: list[ChatCompletionMessageParam] = [
         cast(ChatCompletionMessageParam, {
@@ -107,6 +112,7 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
     buf = io.BytesIO()
     await bot.download(file.file_id, destination=buf)
     buf.seek(0)
+    history = get_history()
 
     match file:
         case Audio():
@@ -156,7 +162,7 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
                     people_images[3],
                     "Это фото которое нужно проанализировать и сравнить с людьми выше (если люди выше есть на этом фото, тогда тегаем их ник):",
                     uploaded,
-                    f"{prompt} {chats_peoples_text}"
+                    f"{prompt} {chats_peoples_text} {system}", *history
                 ]
             )
 
@@ -204,15 +210,17 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
 
 
 async def client_model_handler(message: Message, bot: Bot) -> str | None:
-    add_message(message.from_user.username, message.text)
+    if "Начальник" in NAME_BOT:
+        add_message(message.from_user.username, message.text)
 
-    if message.text == "/refresh_history":
-        client_redis.flushdb()
+    # if message.text == "/refresh_history":
+    #     client_redis.flushdb()
+    #
+    # if message.text == "/sound":
+    #     return generation_message()
 
-    if message.text == "/sound":
-        return generation_message()
-
-    if "@antonlamma_bot" in message.text or (
+    if NAME_BOT in message.text or (
             message.reply_to_message and message.reply_to_message.from_user.id == bot.id):
         return generation_message_chat()
+
     return None
