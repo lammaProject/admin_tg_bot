@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 NAME_BOT = os.getenv("NAME_BOT")
+NICK_BOT = os.getenv("NICK_BOT")
 
 reactions = [
     "👍", "👎", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢",
@@ -55,7 +56,7 @@ async def process_update(update_data: dict):
 
     @dp.message()
     async def message_handler(message: types.Message):
-        if NAME_BOT in message.text or (
+        if NAME_BOT in message.text or NICK_BOT in message.text or (
                 message.reply_to_message and message.reply_to_message.from_user.id == bot.id):
             if message.photo:
                 file = message.photo[-1]
