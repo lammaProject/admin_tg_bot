@@ -80,47 +80,48 @@ async def process_update(update_data: dict):
 
     @dp.message()
     async def message_handler(message: types.Message):
-        if message.text and message.text.startswith("[BOT_PING]"):
-            # убираем префикс и обрабатываем без ping_bot2
-            clean_text = message.text.replace("[BOT_PING] ", "")
-            # обработка...
-            return
-        logger.info(f"text: {message.text!r}, entities: {message.entities}")
-        if NAME_BOT in message.text or NICK_BOT in message.text or (
-                message.reply_to_message and message.reply_to_message.from_user.id == bot.id):
-            if message.photo:
-                file = message.photo[-1]
-                text = await analyze_file(file, bot)
-                await message.reply(text)
-            if message.sticker:
-                text = await analyze_file(message.sticker, bot)
-                await message.reply(text)
-            if message.audio:
-                text = await analyze_file(message.audio, bot)
-                await message.reply(text)
-
-        if not message.text:
-            return
         if message.from_user and message.from_user.id == bot.id:
             return
 
-        text = await client_model_handler(message, bot)
-        if not text or text is None:
+        is_bot_ping = message.text and message.text.startswith("[BOT_PING]")
+        text = (message.text or "").replace("[BOT_PING] ", "")
+
+        mentioned = (
+                NAME_BOT.lower() in text.lower() or
+                NICK_BOT.lower() in text.lower() or
+                (message.reply_to_message and message.reply_to_message.from_user.id == bot.id)
+        )
+
+        if mentioned:
+            if message.photo:
+                result = await analyze_file(message.photo[-1], bot)
+                await bot.send_message(message.chat.id, result)
+            if message.sticker:
+                result = await analyze_file(message.sticker, bot)
+                await bot.send_message(message.chat.id, result)
+            if message.audio:
+                result = await analyze_file(message.audio, bot)
+                await bot.send_message(message.chat.id, result)
+
+        if not text:
             return
 
-        await message.reply(text)
-        await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
+        response = await client_model_handler(message, bot)
+        if not response:
+            return
 
-        if any(
-                part in text
+        if is_bot_ping:
+            await bot.send_message(message.chat.id, response)  # не reply на фейковый апдейт
+        else:
+            await message.reply(response)
+            await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
+
+        if not is_bot_ping and any(
+                part in response
                 for p in OTHER_BOTS
                 for part in p.get("имя", "").split()
         ):
-            logger.info(f"text: {message.text!r}, entities: {message.entities}")
-            if message.message_id == 1:  # фейковый апдейт
-                await bot.send_message(message.chat.id, text)
-            else:
-                await message.reply(text)
+            await ping_bot2(response, message.chat.id)
 
     try:
         update = types.Update(**update_data)
