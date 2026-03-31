@@ -172,8 +172,10 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
             return result
         except Exception as e:
             buf.seek(0)
-            return str(e)
-            continue
+            error_text = str(e)
+            if len(error_text) > 4096:
+                error_text = error_text[:4093] + "..."
+            return error_text
 
     return "Друг соси)"
 
