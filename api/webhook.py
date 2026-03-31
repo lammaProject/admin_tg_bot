@@ -106,7 +106,7 @@ async def process_update(update_data: dict):
         await message.reply(text)
         await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
 
-        logger.info(f"text: {message.text!r}, entities: {message.entities}")
+        logger.info(f"text: {text!r}, entities: {message.entities}", any(p.get("имя", "") in text for p in OTHER_BOTS))
         if any(p.get("имя", "") in text for p in OTHER_BOTS):
             logger.info(f"text: {message.text!r}, entities: {message.entities}")
             await ping_bot2(text, message.chat.id)
