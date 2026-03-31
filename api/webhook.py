@@ -38,7 +38,7 @@ async def ping_bot2(text: str, chat_id: int):
     logger.info(f"test")
     async with httpx.AsyncClient() as client:
         await client.post(
-            BOT2_WEBHOOK_URL,
+            f"{BOT2_WEBHOOK_URL}/api/webhook",
             json={
                 "update_id": 999,
                 "message": {
