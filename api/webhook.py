@@ -80,6 +80,8 @@ async def process_update(update_data: dict):
 
     @dp.message()
     async def message_handler(message: types.Message):
+        if message.from_user and message.from_user.id == bot.id:
+            return
         logger.info(f"text: {message.text!r}, entities: {message.entities}")
         if NAME_BOT in message.text or NICK_BOT in message.text or (
                 message.reply_to_message and message.reply_to_message.from_user.id == bot.id):
