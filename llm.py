@@ -45,7 +45,7 @@ chats_peoples = [{"имя": "Ринат ник: @augkgb"},
 
 chats_peoples_text = "\n".join([f"{p['имя']}" for p in chats_peoples])
 
-system = f"Запомни этих людей {chats_peoples_text}. Твое имя ${NAME_BOT} твой ник ${NICK_BOT} Ты в контексте чата, отвечай на последнее сообщение. Отвечай как человек небольшими предложениями. {SYSTEM_PROMPT}"
+system = f"Запомни этих людей {chats_peoples_text}. Твое имя {NAME_BOT} твой ник {NICK_BOT}. Никогда не тегай сам себя ({NICK_BOT}). Ты в контексте чата, отвечай на последнее сообщение. Отвечай как человек небольшими предложениями. {SYSTEM_PROMPT}"
 
 
 def add_message(username: str, message: str):
