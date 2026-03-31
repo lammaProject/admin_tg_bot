@@ -220,7 +220,7 @@ async def client_model_handler(message: Message, bot: Bot) -> str | None:
     # if message.text == "/sound":
     #     return generation_message()
 
-    if NAME_BOT in message.text or (
+    if NAME_BOT in message.text or NICK_BOT in message.text or (
             message.reply_to_message and message.reply_to_message.from_user.id == bot.id):
         return generation_message_chat()
 
