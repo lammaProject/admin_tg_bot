@@ -114,6 +114,8 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
     buf.seek(0)
     history = get_history()
 
+    history_text = "\n".join([item["content"] for item in history])
+
     match file:
         case Audio():
             prompt = "Ты саунд продюсер с 10 летним стажем должен оценить аудиозапись которую тебе передали. Напиши так же удачную строчку которая тебе понравилась. Только коротко в пару предложений"
