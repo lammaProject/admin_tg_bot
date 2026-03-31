@@ -11,6 +11,7 @@ from google import genai
 import io
 import mimetypes
 import redis
+import json
 
 load_dotenv()
 
@@ -20,7 +21,7 @@ REDIS_URL = os.getenv("REDIS_URL")
 SYSTEM_PROMPT = os.getenv("SYSTEM_PROMPT")
 NAME_BOT = os.getenv("NAME_BOT")
 NICK_BOT = os.getenv("NICK_BOT")
-OTHER_BOTS = os.getenv("OTHER_BOTS", "[]")
+OTHER_BOTS = json.loads(os.getenv("OTHER_BOTS", "[]"))
 
 client_groq = Groq(
     api_key=GROQ_TOKEN,
