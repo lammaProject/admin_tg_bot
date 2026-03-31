@@ -113,6 +113,7 @@ async def process_update(update_data: dict):
                 part in response
                 for p in OTHER_BOTS
                 for part in p.get("имя", "").split()
+                if part not in (NAME_BOT, NICK_BOT)  # исключаем себя
         ):
             await ping_bot2(response, message.chat.id)
 
