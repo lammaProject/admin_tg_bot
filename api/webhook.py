@@ -3,6 +3,7 @@ import json
 import random
 import asyncio
 import logging
+import httpx
 from http.server import BaseHTTPRequestHandler
 
 from aiogram import Bot, Dispatcher, types
@@ -18,6 +19,8 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 NAME_BOT = os.getenv("NAME_BOT")
 NICK_BOT = os.getenv("NICK_BOT")
+BOT2_WEBHOOK_URL = os.getenv("BOT2_WEBHOOK_URL")
+OTHER_BOTS = json.loads(os.getenv("OTHER_BOTS", "[]"))
 
 reactions = [
     "👍", "👎", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢",
@@ -26,6 +29,25 @@ reactions = [
     "🍾", "💋", "🖕", "😈", "😴", "😭", "🤓", "👻", "👨‍💻", "👀", "🎃", "🙈",
     "😇", "😂", "🤝", "🤙",
 ]
+
+
+async def ping_bot2(text: str, chat_id: int):
+    if not BOT2_WEBHOOK_URL:
+        return
+    async with httpx.AsyncClient() as client:
+        await client.post(
+            BOT2_WEBHOOK_URL,
+            json={
+                "update_id": 999,
+                "message": {
+                    "message_id": 1,
+                    "from": {"id": 1, "is_bot": False, "first_name": NAME_BOT},
+                    "chat": {"id": chat_id, "type": "supergroup"},
+                    "date": 0,
+                    "text": text
+                }
+            }
+        )
 
 
 class handler(BaseHTTPRequestHandler):
@@ -81,6 +103,9 @@ async def process_update(update_data: dict):
 
         await message.reply(text)
         await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
+
+        if any(p.get("имя", "") in message.text for p in OTHER_BOTS):
+            await ping_bot2(text, message.chat.id)
 
     try:
         update = types.Update(**update_data)
