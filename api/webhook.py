@@ -31,9 +31,13 @@ reactions = [
 ]
 
 
-async def ping_bot2(text: str, chat_id: int):
+async def ping_bot2(text: str, chat_id: int, ping_depth: int = 0):
     if not BOT2_WEBHOOK_URL:
         logger.info("BOT2_WEBHOOK_URL не задан")
+        return
+
+    if ping_depth >= 3:
+        logger.info("Достигнут лимит пингов")
         return
 
     logger.info(f"Пингую бота: {BOT2_WEBHOOK_URL} с текстом: {text!r}")
@@ -47,7 +51,7 @@ async def ping_bot2(text: str, chat_id: int):
                     "from": {"id": 1, "is_bot": False, "first_name": NAME_BOT},
                     "chat": {"id": int(chat_id), "type": "supergroup"},
                     "date": 0,
-                    "text": f"[BOT_PING] {text}"
+                    "text": f"[BOT_PING:{ping_depth + 1}] {text}"
                 }
             }
         )
@@ -85,8 +89,19 @@ async def process_update(update_data: dict):
         if message.from_user and message.from_user.id == bot.id:
             return
 
-        is_bot_ping = message.text and message.text.startswith("[BOT_PING]")
-        text = (message.text or "").replace("[BOT_PING] ", "")
+        is_bot_ping = False
+        ping_depth = 0
+
+        if message.text and "[BOT_PING:" in message.text:
+            is_bot_ping = True
+            try:
+                ping_depth = int(message.text.split("[BOT_PING:")[1].split("]")[0])
+            except:
+                ping_depth = 0
+
+        text = (message.text or "")
+        if is_bot_ping:
+            text = text.split("] ", 1)[-1]
 
         mentioned = (
                 NAME_BOT.lower() in text.lower() or
@@ -113,18 +128,18 @@ async def process_update(update_data: dict):
             return
 
         if is_bot_ping:
-            await bot.send_message(message.chat.id, response)  # не reply на фейковый апдейт
+            await bot.send_message(message.chat.id, response)
         else:
             await message.reply(response)
             await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
 
-        if not is_bot_ping and any(
+        if ping_depth < 3 and any(
                 part in response
                 for p in OTHER_BOTS
                 for part in p.get("имя", "").split()
-                if part not in (NAME_BOT, NICK_BOT)  # исключаем себя
+                if len(part) > 3 and part not in (NAME_BOT, NICK_BOT)
         ):
-            await ping_bot2(response, message.chat.id)
+            await ping_bot2(response, message.chat.id, ping_depth)
 
     try:
         update = types.Update(**update_data)
