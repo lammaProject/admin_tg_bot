@@ -114,7 +114,7 @@ async def process_update(update_data: dict):
                 for part in p.get("имя", "").split()
         ):
             logger.info(f"text: {message.text!r}, entities: {message.entities}")
-            await ping_bot2(text, message.chat.id)
+            await message.reply(text)
 
     try:
         update = types.Update(**update_data)
