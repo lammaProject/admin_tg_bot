@@ -34,6 +34,8 @@ reactions = [
 async def ping_bot2(text: str, chat_id: int):
     if not BOT2_WEBHOOK_URL:
         return
+
+    logger.info(f"test")
     async with httpx.AsyncClient() as client:
         await client.post(
             BOT2_WEBHOOK_URL,
@@ -104,7 +106,9 @@ async def process_update(update_data: dict):
         await message.reply(text)
         await message.react([types.ReactionTypeEmoji(emoji=random.choice(reactions))])
 
+        logger.info(f"text: {message.text!r}, entities: {message.entities}")
         if any(p.get("имя", "") in text for p in OTHER_BOTS):
+            logger.info(f"text: {message.text!r}, entities: {message.entities}")
             await ping_bot2(text, message.chat.id)
 
     try:
