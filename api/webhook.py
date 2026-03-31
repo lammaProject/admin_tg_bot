@@ -33,23 +33,16 @@ reactions = [
 
 async def ping_bot2(text: str, chat_id: int):
     if not BOT2_WEBHOOK_URL:
+        logger.info("BOT2_WEBHOOK_URL не задан")
         return
 
-    logger.info(f"test")
+    logger.info(f"Пингую бота: {BOT2_WEBHOOK_URL} с текстом: {text!r}")
     async with httpx.AsyncClient() as client:
-        await client.post(
+        response = await client.post(
             f"{BOT2_WEBHOOK_URL}/api/webhook",
-            json={
-                "update_id": 999,
-                "message": {
-                    "message_id": 1,
-                    "from": {"id": 1, "is_bot": False, "first_name": NAME_BOT},
-                    "chat": {"id": chat_id, "type": "supergroup"},
-                    "date": 0,
-                    "text": f"[BOT_PING] {text}"
-                }
-            }
+            json={...}
         )
+        logger.info(f"Ответ: {response.status_code} {response.text}")
 
 
 class handler(BaseHTTPRequestHandler):
