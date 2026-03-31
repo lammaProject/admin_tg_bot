@@ -162,7 +162,8 @@ async def analyze_file(file: Audio | Sticker | PhotoSize, bot: Bot):
                     people_images[3],
                     "Это фото которое нужно проанализировать и сравнить с людьми выше (если люди выше есть на этом фото, тогда тегаем их ник):",
                     uploaded,
-                    f"{prompt} {chats_peoples_text} {system}", *history
+                    f"{prompt} {chats_peoples_text} {system}",
+                    f"История чата:\n{history_text}"
                 ]
             )
 
