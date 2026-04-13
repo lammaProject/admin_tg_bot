@@ -28,7 +28,7 @@ class handler(BaseHTTPRequestHandler):
 async def process():
     bot = Bot(token=BOT_TOKEN)
 
-    text = generation_message_chat("Отправь кому нибудь из чата сообщение, узнай почему молчание в чате, и тегни его")
+    text = generation_message_chat("Придумай смешную шутку на любую тему с сайта https://www.anekdot.ru/")
 
     await bot.send_message(CHAT_ID, text)
 
