@@ -67,6 +67,7 @@ def fetch_yesterdays_releases(
     retry_delay: float = 2.0,
 ) -> list[Release]:
     target_date = get_yesterday(timezone)
+    source = _normalize_source(source)
 
     if source == "yandex_music_web":
         return fetch_yandex_music_web_releases()
@@ -87,7 +88,10 @@ def fetch_yesterdays_releases(
 
 
 def fetch_yandex_music_web_releases() -> list[Release]:
-    return [release for _, release in _fetch_yandex_music_web_release_items()]
+    releases = [release for _, release in _fetch_yandex_music_web_release_items()]
+    if not releases:
+        raise ReleaseParserError("Yandex Music web source returned 0 releases")
+    return releases
 
 
 def fetch_yandex_music_releases(
@@ -777,6 +781,10 @@ def _safe_date(year: int, month: int, day: int) -> date | None:
         return date(year, month, day)
     except ValueError:
         return None
+
+
+def _normalize_source(source: str) -> str:
+    return _clean_value(source).lower().replace("-", "_")
 
 
 def _normalize_text(text: str) -> str:
