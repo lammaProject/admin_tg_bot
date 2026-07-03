@@ -88,41 +88,42 @@ def fetch_yandex_music_releases(
     token: str | None = None,
     extra_search_queries: Iterable[str] | None = DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES,
 ) -> list[Release]:
+    web_release_items: list[tuple[str, Release]] = []
+    web_error: Exception | None = None
     try:
-        from yandex_music import Client
-    except ImportError as error:
-        raise ReleaseParserError("yandex-music package is not installed") from error
+        web_release_items = _fetch_yandex_music_web_release_items()
+    except requests.RequestException as error:
+        web_error = error
 
     token = token if token is not None else os.getenv("YANDEX_MUSIC_TOKEN")
-    if not token:
-        raise ReleaseParserError("YANDEX_MUSIC_TOKEN is required for yandex_music releases source")
+    albums: list[Any] = []
+    api_error: Exception | None = None
 
-    try:
-        client = Client(token).init() if token else Client().init()
-        album_ids: list[Any] = []
-        web_release_items: list[tuple[str, Release]] = []
+    if token:
         try:
-            web_release_items = _fetch_yandex_music_web_release_items()
-            album_ids.extend(album_id for album_id, _ in web_release_items)
-        except requests.RequestException:
-            pass
+            from yandex_music import Client
+        except ImportError as error:
+            api_error = error
+        else:
+            try:
+                client = Client(token)
+                album_ids: list[Any] = [album_id for album_id, _ in web_release_items]
 
-        try:
-            landing = client.new_releases()
-            album_ids.extend(getattr(landing, "new_releases", []) or [])
-        except Exception:
-            if not album_ids:
-                raise
+                try:
+                    landing = client.new_releases()
+                    album_ids.extend(getattr(landing, "new_releases", []) or [])
+                except Exception:
+                    if not album_ids:
+                        raise
 
-        album_ids = _unique_album_ids(album_ids)
-        albums = _fetch_yandex_music_albums(client, album_ids)
-        if album_ids and not albums and not web_release_items:
-            raise ReleaseParserError(
-                "Yandex Music album details are unavailable from this server, likely due to regional/legal restrictions"
-            )
-        albums.extend(_search_yandex_music_albums(client, extra_search_queries))
-    except Exception as error:
-        raise ReleaseParserError(f"Failed to fetch Yandex Music releases: {error}") from error
+                album_ids = _unique_album_ids(album_ids)
+                albums = _fetch_yandex_music_albums(client, album_ids)
+                albums.extend(_search_yandex_music_albums(client, extra_search_queries))
+            except Exception as error:
+                api_error = error
+
+    if not token and not web_release_items:
+        raise ReleaseParserError("YANDEX_MUSIC_TOKEN is required when Yandex Music web releases are unavailable")
 
     releases: list[tuple[int, Release]] = []
     seen_album_ids: set[str] = set()
@@ -146,7 +147,15 @@ def fetch_yandex_music_releases(
         if album_id not in seen_album_ids:
             releases.append((0, release))
 
-    return [release for _, release in sorted(releases, key=lambda item: item[0], reverse=True)]
+    if releases:
+        return [release for _, release in sorted(releases, key=lambda item: item[0], reverse=True)]
+
+    if api_error:
+        raise ReleaseParserError(f"Failed to fetch Yandex Music releases: {api_error}") from api_error
+    if web_error:
+        raise ReleaseParserError(f"Failed to fetch Yandex Music web releases: {web_error}") from web_error
+
+    return []
 
 
 def _fetch_yandex_music_web_release_items(
