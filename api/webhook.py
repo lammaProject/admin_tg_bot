@@ -7,9 +7,19 @@ import httpx
 from http.server import BaseHTTPRequestHandler
 
 from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 from llm import client_model_handler, analyze_file
+from release_parser import (
+    DEFAULT_TIMEZONE,
+    DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES,
+    ReleaseParserError,
+    fetch_yesterdays_releases,
+    format_releases_message,
+    get_yesterday,
+    split_telegram_message,
+)
 
 load_dotenv()
 
@@ -21,6 +31,18 @@ NAME_BOT = os.getenv("NAME_BOT")
 NICK_BOT = os.getenv("NICK_BOT")
 BOT2_WEBHOOK_URL = os.getenv("BOT2_WEBHOOK_URL")
 OTHER_BOTS = json.loads(os.getenv("OTHER_BOTS", "[]"))
+RELEASES_TIMEZONE = os.getenv("RELEASES_TIMEZONE", DEFAULT_TIMEZONE)
+RELEASES_SOURCE = os.getenv("RELEASES_SOURCE", "yandex_music")
+RELEASES_FETCH_ATTEMPTS = int(os.getenv("RELEASES_FETCH_ATTEMPTS", "3"))
+RELEASES_RETRY_DELAY = float(os.getenv("RELEASES_RETRY_DELAY", "2"))
+RELEASES_FALLBACK_TO_HTML = os.getenv("RELEASES_FALLBACK_TO_HTML", "0").lower() in {"1", "true", "yes", "on"}
+RELEASES_LIMIT = int(os.getenv("RELEASES_LIMIT", "10"))
+RELEASES_EXTRA_SEARCH_QUERIES = tuple(
+    query.strip()
+    for query in os.getenv("RELEASES_EXTRA_SEARCH_QUERIES", ";".join(DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES)).split(";")
+    if query.strip()
+)
+YANDEX_MUSIC_TOKEN = os.getenv("YANDEX_MUSIC_TOKEN")
 
 reactions = [
     "👍", "👎", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🤯", "😱", "🤬", "😢",
@@ -83,6 +105,30 @@ async def process_update(update_data: dict):
     bot = Bot(token=BOT_TOKEN)
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
+
+    @dp.message(Command("release"))
+    async def release_handler(message: types.Message):
+        target_date = get_yesterday(RELEASES_TIMEZONE)
+
+        try:
+            releases = fetch_yesterdays_releases(
+                timezone=RELEASES_TIMEZONE,
+                source=RELEASES_SOURCE,
+                yandex_music_token=YANDEX_MUSIC_TOKEN,
+                yandex_music_extra_queries=RELEASES_EXTRA_SEARCH_QUERIES,
+                fallback_to_html=RELEASES_FALLBACK_TO_HTML,
+                attempts=RELEASES_FETCH_ATTEMPTS,
+                retry_delay=RELEASES_RETRY_DELAY,
+            )
+            total_count = len(releases)
+            if RELEASES_LIMIT > 0:
+                releases = releases[:RELEASES_LIMIT]
+            text = format_releases_message(releases, target_date, total_count=total_count)
+        except ReleaseParserError as error:
+            text = f"Не получилось получить релизы за {target_date:%d.%m.%Y}: {error}"
+
+        for chunk in split_telegram_message(text):
+            await bot.send_message(message.chat.id, chunk)
 
     @dp.message()
     async def message_handler(message: types.Message):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import random
 import re
 import time
@@ -15,7 +16,10 @@ from zoneinfo import ZoneInfo
 
 
 RELEASES_URL = "https://risazatvorchestvo.com/releases"
+YANDEX_MUSIC_NEW_RELEASES_URL = "https://music.yandex.ru/new-releases/"
+YANDEX_MUSIC_ALBUM_URL = "https://music.yandex.ru/album/{album_id}"
 DEFAULT_TIMEZONE = "Asia/Yekaterinburg"
+DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES: tuple[str, ...] = ()
 
 MONTHS_RU = {
     "января": 1,
@@ -53,13 +57,111 @@ def fetch_yesterdays_releases(
     url: str = RELEASES_URL,
     *,
     timezone: str = DEFAULT_TIMEZONE,
+    source: str = "yandex_music",
+    yandex_music_token: str | None = None,
+    yandex_music_extra_queries: Iterable[str] | None = DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES,
+    fallback_to_html: bool = False,
     timeout: int = 20,
     attempts: int = 3,
     retry_delay: float = 2.0,
 ) -> list[Release]:
     target_date = get_yesterday(timezone)
+
+    if source == "yandex_music":
+        try:
+            return fetch_yandex_music_releases(
+                target_date=target_date,
+                token=yandex_music_token,
+                extra_search_queries=yandex_music_extra_queries,
+            )
+        except ReleaseParserError:
+            if not fallback_to_html:
+                raise
+
     html = fetch_releases_page(url, timeout=timeout, attempts=attempts, retry_delay=retry_delay)
     return parse_releases(html, base_url=url, target_date=target_date)
+
+
+def fetch_yandex_music_releases(
+    *,
+    target_date: date,
+    token: str | None = None,
+    extra_search_queries: Iterable[str] | None = DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES,
+) -> list[Release]:
+    try:
+        from yandex_music import Client
+    except ImportError as error:
+        raise ReleaseParserError("yandex-music package is not installed") from error
+
+    token = token if token is not None else os.getenv("YANDEX_MUSIC_TOKEN")
+    if not token:
+        raise ReleaseParserError("YANDEX_MUSIC_TOKEN is required for yandex_music releases source")
+
+    try:
+        client = Client(token).init() if token else Client().init()
+        album_ids: list[Any] = []
+        try:
+            album_ids.extend(_fetch_yandex_music_web_album_ids())
+        except requests.RequestException:
+            pass
+
+        try:
+            landing = client.new_releases()
+            album_ids.extend(getattr(landing, "new_releases", []) or [])
+        except Exception:
+            if not album_ids:
+                raise
+
+        album_ids = _unique_album_ids(album_ids)
+        albums = _fetch_yandex_music_albums(client, album_ids)
+        albums.extend(_search_yandex_music_albums(client, extra_search_queries))
+    except Exception as error:
+        raise ReleaseParserError(f"Failed to fetch Yandex Music releases: {error}") from error
+
+    releases: list[tuple[int, Release]] = []
+    seen_album_ids: set[int] = set()
+    for album in albums:
+        album_id = getattr(album, "id", None)
+        if album_id in seen_album_ids:
+            continue
+        if album_id is not None:
+            seen_album_ids.add(album_id)
+
+        album_date = _extract_album_date(getattr(album, "release_date", None))
+        if album_date and album_date != target_date:
+            continue
+
+        release = _release_from_yandex_album(album)
+        if release:
+            releases.append((_album_likes_count(album), release))
+
+    return [release for _, release in sorted(releases, key=lambda item: item[0], reverse=True)]
+
+
+def _fetch_yandex_music_web_album_ids(
+    url: str = YANDEX_MUSIC_NEW_RELEASES_URL,
+    *,
+    timeout: int = 20,
+) -> list[str]:
+    response = requests.get(
+        url,
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
+        },
+        timeout=timeout,
+    )
+    response.raise_for_status()
+
+    ids = re.findall(r'"type":"album_item","data":\{"id":(\d+),', response.text)
+    if not ids:
+        ids = re.findall(r'href="/album/(\d+)"', response.text)
+
+    return _unique_album_ids(ids)
 
 
 def fetch_releases_page(
@@ -123,14 +225,18 @@ def parse_releases(html: str, *, base_url: str, target_date: date) -> list[Relea
     return unique_releases
 
 
-def format_releases_message(releases: Iterable[Release], target_date: date) -> str:
+def format_releases_message(releases: Iterable[Release], target_date: date, *, total_count: int | None = None) -> str:
     releases = list(releases)
+    total_count = len(releases) if total_count is None else total_count
     formatted_date = target_date.strftime("%d.%m.%Y")
 
     if not releases:
         return f"Новых релизов за {formatted_date} не найдено."
 
-    lines = [f"Новые релизы за {formatted_date}:"]
+    lines = [
+        f"Новые релизы за {formatted_date}: найдено {total_count}.",
+        f"Топ-{len(releases)} по лайкам:",
+    ]
     for index, release in enumerate(releases, start=1):
         points = f" ({release.points})" if release.points else ""
         title = f" - {release.title}" if release.title and release.title != release.artist else ""
@@ -173,6 +279,88 @@ def is_captcha_page(html: str) -> bool:
             "вы не робот",
         )
     )
+
+
+def _release_from_yandex_album(album: Any) -> Release | None:
+    album_id = getattr(album, "id", None)
+    title = _clean_value(str(getattr(album, "title", "") or ""))
+    artists = getattr(album, "artists", None) or []
+    artist = ", ".join(
+        _clean_value(str(getattr(artist_item, "name", "") or ""))
+        for artist_item in artists
+        if _clean_value(str(getattr(artist_item, "name", "") or ""))
+    )
+
+    if not title and not artist:
+        return None
+
+    url = YANDEX_MUSIC_ALBUM_URL.format(album_id=album_id) if album_id else ""
+    return Release(
+        artist=artist or "Unknown artist",
+        title=title,
+        points=_format_likes(_album_likes_count(album)),
+        url=url,
+    )
+
+
+def _fetch_yandex_music_albums(client: Any, album_ids: Iterable[Any], batch_size: int = 50) -> list[Any]:
+    albums: list[Any] = []
+    ids = _unique_album_ids(album_ids)
+
+    for index in range(0, len(ids), batch_size):
+        albums.extend(client.albums(ids[index : index + batch_size]))
+
+    return albums
+
+
+def _unique_album_ids(album_ids: Iterable[Any]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+
+    for album_id in album_ids:
+        album_id = _clean_value(str(album_id))
+        if not album_id or album_id in seen:
+            continue
+        seen.add(album_id)
+        result.append(album_id)
+
+    return result
+
+
+def _search_yandex_music_albums(client: Any, queries: Iterable[str] | None) -> list[Any]:
+    albums: list[Any] = []
+    if not queries:
+        return albums
+
+    for query in queries:
+        query = _clean_value(str(query))
+        if not query:
+            continue
+
+        result = client.search(query, type_="album")
+        search_albums = getattr(getattr(result, "albums", None), "results", None) or []
+        albums.extend(search_albums)
+
+    return albums
+
+
+def _album_likes_count(album: Any) -> int:
+    try:
+        return int(getattr(album, "likes_count", 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _format_likes(likes_count: int) -> str:
+    return f"{likes_count} likes" if likes_count > 0 else ""
+
+
+def _extract_album_date(value: Any) -> date | None:
+    if isinstance(value, date):
+        return value
+    if value is None:
+        return None
+    return _extract_date(str(value))
 
 
 def _parse_html_releases(soup: BeautifulSoup, *, base_url: str, target_date: date) -> list[Release]:
@@ -389,7 +577,7 @@ def _looks_like_points(text: str) -> bool:
 def _extract_date(text: str, *, default_year: int | None = None) -> date | None:
     text = _normalize_text(text)
 
-    match = re.search(r"\b(20\d{2})-(\d{1,2})-(\d{1,2})\b", text)
+    match = re.search(r"\b(20\d{2})-(\d{1,2})-(\d{1,2})(?:\b|t)", text)
     if match:
         return _safe_date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
 
