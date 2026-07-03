@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 
 RELEASES_URL = "https://risazatvorchestvo.com/releases"
 YANDEX_MUSIC_NEW_RELEASES_URL = "https://music.yandex.ru/new-releases/"
+YANDEX_MUSIC_NEW_RELEASES_ENTITY_URL = "https://music.yandex.ru/entities/new-releases/web_newreleases"
 YANDEX_MUSIC_ALBUM_URL = "https://music.yandex.ru/album/{album_id}"
 DEFAULT_TIMEZONE = "Asia/Yekaterinburg"
 DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES: tuple[str, ...] = ()
@@ -67,6 +68,9 @@ def fetch_yesterdays_releases(
 ) -> list[Release]:
     target_date = get_yesterday(timezone)
 
+    if source == "yandex_music_web":
+        return fetch_yandex_music_web_releases()
+
     if source == "yandex_music":
         try:
             return fetch_yandex_music_releases(
@@ -80,6 +84,10 @@ def fetch_yesterdays_releases(
 
     html = fetch_releases_page(url, timeout=timeout, attempts=attempts, retry_delay=retry_delay)
     return parse_releases(html, base_url=url, target_date=target_date)
+
+
+def fetch_yandex_music_web_releases() -> list[Release]:
+    return [release for _, release in _fetch_yandex_music_web_release_items()]
 
 
 def fetch_yandex_music_releases(
@@ -160,6 +168,37 @@ def fetch_yandex_music_releases(
 
 def _fetch_yandex_music_web_release_items(
     url: str = YANDEX_MUSIC_NEW_RELEASES_URL,
+    *,
+    timeout: int = 20,
+) -> list[tuple[str, Release]]:
+    last_error: requests.RequestException | None = None
+    for candidate_url in _yandex_music_web_release_urls(url):
+        try:
+            releases = _fetch_yandex_music_web_release_items_from_url(candidate_url, timeout=timeout)
+        except requests.RequestException as error:
+            last_error = error
+            continue
+        if releases:
+            return releases
+
+    if last_error:
+        raise last_error
+    return []
+
+
+def _yandex_music_web_release_urls(url: str) -> list[str]:
+    urls = [url, YANDEX_MUSIC_NEW_RELEASES_ENTITY_URL, YANDEX_MUSIC_NEW_RELEASES_URL]
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in urls:
+        if item and item not in seen:
+            seen.add(item)
+            result.append(item)
+    return result
+
+
+def _fetch_yandex_music_web_release_items_from_url(
+    url: str,
     *,
     timeout: int = 20,
 ) -> list[tuple[str, Release]]:
