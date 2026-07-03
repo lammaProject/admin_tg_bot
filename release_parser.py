@@ -100,8 +100,10 @@ def fetch_yandex_music_releases(
     try:
         client = Client(token).init() if token else Client().init()
         album_ids: list[Any] = []
+        web_release_items: list[tuple[str, Release]] = []
         try:
-            album_ids.extend(_fetch_yandex_music_web_album_ids())
+            web_release_items = _fetch_yandex_music_web_release_items()
+            album_ids.extend(album_id for album_id, _ in web_release_items)
         except requests.RequestException:
             pass
 
@@ -114,18 +116,23 @@ def fetch_yandex_music_releases(
 
         album_ids = _unique_album_ids(album_ids)
         albums = _fetch_yandex_music_albums(client, album_ids)
+        if album_ids and not albums and not web_release_items:
+            raise ReleaseParserError(
+                "Yandex Music album details are unavailable from this server, likely due to regional/legal restrictions"
+            )
         albums.extend(_search_yandex_music_albums(client, extra_search_queries))
     except Exception as error:
         raise ReleaseParserError(f"Failed to fetch Yandex Music releases: {error}") from error
 
     releases: list[tuple[int, Release]] = []
-    seen_album_ids: set[int] = set()
+    seen_album_ids: set[str] = set()
     for album in albums:
         album_id = getattr(album, "id", None)
-        if album_id in seen_album_ids:
+        album_id_key = _clean_value(str(album_id or ""))
+        if album_id_key in seen_album_ids:
             continue
-        if album_id is not None:
-            seen_album_ids.add(album_id)
+        if album_id_key:
+            seen_album_ids.add(album_id_key)
 
         album_date = _extract_album_date(getattr(album, "release_date", None))
         if album_date and album_date != target_date:
@@ -135,14 +142,18 @@ def fetch_yandex_music_releases(
         if release:
             releases.append((_album_likes_count(album), release))
 
+    for album_id, release in web_release_items:
+        if album_id not in seen_album_ids:
+            releases.append((0, release))
+
     return [release for _, release in sorted(releases, key=lambda item: item[0], reverse=True)]
 
 
-def _fetch_yandex_music_web_album_ids(
+def _fetch_yandex_music_web_release_items(
     url: str = YANDEX_MUSIC_NEW_RELEASES_URL,
     *,
     timeout: int = 20,
-) -> list[str]:
+) -> list[tuple[str, Release]]:
     response = requests.get(
         url,
         headers={
@@ -157,11 +168,106 @@ def _fetch_yandex_music_web_album_ids(
     )
     response.raise_for_status()
 
-    ids = re.findall(r'"type":"album_item","data":\{"id":(\d+),', response.text)
-    if not ids:
-        ids = re.findall(r'href="/album/(\d+)"', response.text)
+    releases = _parse_yandex_music_web_state_releases(response.text)
+    if releases:
+        return releases
 
-    return _unique_album_ids(ids)
+    return _parse_yandex_music_web_html_releases(response.text)
+
+
+def _parse_yandex_music_web_state_releases(html: str) -> list[tuple[str, Release]]:
+    decoder = json.JSONDecoder()
+    releases: list[tuple[str, Release]] = []
+    seen: set[str] = set()
+
+    for match in re.finditer(r'\{"type":"album_item","data":', html):
+        try:
+            item, _ = decoder.raw_decode(html[match.start() :])
+        except json.JSONDecodeError:
+            continue
+
+        data = item.get("data") if isinstance(item, dict) else None
+        if not isinstance(data, dict):
+            continue
+
+        album_id = _clean_value(str(data.get("id") or ""))
+        if not album_id or album_id in seen:
+            continue
+
+        title = _clean_value(str(data.get("title") or ""))
+        artists = data.get("artists") or []
+        artist = ", ".join(
+            _clean_value(str(artist_item.get("name") or ""))
+            for artist_item in artists
+            if isinstance(artist_item, dict) and _clean_value(str(artist_item.get("name") or ""))
+        )
+        if not title and not artist:
+            continue
+
+        seen.add(album_id)
+        releases.append(
+            (
+                album_id,
+                Release(
+                    artist=artist or "Unknown artist",
+                    title=title,
+                    points="",
+                    url=YANDEX_MUSIC_ALBUM_URL.format(album_id=album_id),
+                ),
+            )
+        )
+
+    return releases
+
+
+def _parse_yandex_music_web_html_releases(html: str) -> list[tuple[str, Release]]:
+    soup = BeautifulSoup(html, "html.parser")
+    releases: list[tuple[str, Release]] = []
+    seen: set[str] = set()
+
+    for link in soup.find_all("a", href=re.compile(r"^/album/\d+$")):
+        album_id = str(link["href"]).rsplit("/", 1)[-1]
+        if album_id in seen:
+            continue
+
+        title = _clean_value(link.get_text(" ", strip=True))
+        card = _find_yandex_music_album_card(link)
+        artist_names: list[str] = []
+        if card:
+            for artist_link in card.find_all("a", href=re.compile(r"^/artist/\d+$")):
+                artist = _clean_value(artist_link.get_text(" ", strip=True))
+                if artist and artist not in artist_names:
+                    artist_names.append(artist)
+
+        if not title and not artist_names:
+            continue
+
+        seen.add(album_id)
+        releases.append(
+            (
+                album_id,
+                Release(
+                    artist=", ".join(artist_names) or "Unknown artist",
+                    title=title,
+                    points="",
+                    url=YANDEX_MUSIC_ALBUM_URL.format(album_id=album_id),
+                ),
+            )
+        )
+
+    return releases
+
+
+def _find_yandex_music_album_card(node: Tag) -> Tag | None:
+    current: Tag | None = node
+    for _ in range(8):
+        if current is None:
+            return None
+        label = current.get("aria-label") if isinstance(current, Tag) else None
+        if isinstance(label, str) and ("Альбом" in label or "Сингл" in label):
+            return current
+        current = current.parent if isinstance(current.parent, Tag) else None
+    return None
 
 
 def fetch_releases_page(
@@ -233,9 +339,10 @@ def format_releases_message(releases: Iterable[Release], target_date: date, *, t
     if not releases:
         return f"Новых релизов за {formatted_date} не найдено."
 
+    ranking_label = "по лайкам" if any(release.points for release in releases) else "из страницы Яндекс Музыки"
     lines = [
         f"Новые релизы за {formatted_date}: найдено {total_count}.",
-        f"Топ-{len(releases)} по лайкам:",
+        f"Топ-{len(releases)} {ranking_label}:",
     ]
     for index, release in enumerate(releases, start=1):
         points = f" ({release.points})" if release.points else ""
@@ -308,9 +415,26 @@ def _fetch_yandex_music_albums(client: Any, album_ids: Iterable[Any], batch_size
     ids = _unique_album_ids(album_ids)
 
     for index in range(0, len(ids), batch_size):
-        albums.extend(client.albums(ids[index : index + batch_size]))
+        albums.extend(_fetch_yandex_music_album_batch(client, ids[index : index + batch_size]))
 
     return albums
+
+
+def _fetch_yandex_music_album_batch(client: Any, album_ids: list[str]) -> list[Any]:
+    if not album_ids:
+        return []
+
+    try:
+        return list(client.albums(album_ids))
+    except Exception:
+        if len(album_ids) == 1:
+            return []
+
+    middle = len(album_ids) // 2
+    return [
+        *_fetch_yandex_music_album_batch(client, album_ids[:middle]),
+        *_fetch_yandex_music_album_batch(client, album_ids[middle:]),
+    ]
 
 
 def _unique_album_ids(album_ids: Iterable[Any]) -> list[str]:
@@ -337,9 +461,12 @@ def _search_yandex_music_albums(client: Any, queries: Iterable[str] | None) -> l
         if not query:
             continue
 
-        result = client.search(query, type_="album")
-        search_albums = getattr(getattr(result, "albums", None), "results", None) or []
-        albums.extend(search_albums)
+        try:
+            result = client.search(query, type_="album")
+            search_albums = getattr(getattr(result, "albums", None), "results", None) or []
+            albums.extend(search_albums)
+        except Exception:
+            continue
 
     return albums
 
