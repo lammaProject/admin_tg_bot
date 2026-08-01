@@ -14,6 +14,7 @@ from release_parser import (
     get_yesterday,
     split_telegram_message,
 )
+from scrapper import scrapper_test
 
 load_dotenv()
 
@@ -27,7 +28,8 @@ RELEASES_FALLBACK_TO_HTML = os.getenv("RELEASES_FALLBACK_TO_HTML", "0").lower() 
 RELEASES_LIMIT = int(os.getenv("RELEASES_LIMIT", "10"))
 RELEASES_EXTRA_SEARCH_QUERIES = tuple(
     query.strip()
-    for query in os.getenv("RELEASES_EXTRA_SEARCH_QUERIES", ";".join(DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES)).split(";")
+    for query in
+    os.getenv("RELEASES_EXTRA_SEARCH_QUERIES", ";".join(DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES)).split(";")
     if query.strip()
 )
 YANDEX_MUSIC_TOKEN = os.getenv("YANDEX_MUSIC_TOKEN")
@@ -49,33 +51,4 @@ class handler(BaseHTTPRequestHandler):
 
 
 async def process():
-    if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN is not set")
-    if not CHAT_ID:
-        raise RuntimeError("CHAT_ID is not set")
-
-    bot = Bot(token=BOT_TOKEN)
-
-    try:
-        target_date = get_yesterday(RELEASES_TIMEZONE)
-        try:
-            releases = fetch_yesterdays_releases(
-                timezone=RELEASES_TIMEZONE,
-                source=RELEASES_SOURCE,
-                yandex_music_token=YANDEX_MUSIC_TOKEN,
-                yandex_music_extra_queries=RELEASES_EXTRA_SEARCH_QUERIES,
-                fallback_to_html=RELEASES_FALLBACK_TO_HTML,
-                attempts=RELEASES_FETCH_ATTEMPTS,
-                retry_delay=RELEASES_RETRY_DELAY,
-            )
-            total_count = len(releases)
-            if RELEASES_LIMIT > 0:
-                releases = releases[:RELEASES_LIMIT]
-            text = format_releases_message(releases, target_date, total_count=total_count)
-        except ReleaseParserError as error:
-            text = f"Не получилось получить релизы за {target_date:%d.%m.%Y}: {error}"
-
-        for message in split_telegram_message(text):
-            await bot.send_message(CHAT_ID, message)
-    finally:
-        await bot.session.close()
+    await scrapper_test()

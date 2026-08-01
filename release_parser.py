@@ -14,7 +14,6 @@ import requests
 from bs4 import BeautifulSoup, Tag
 from zoneinfo import ZoneInfo
 
-
 RELEASES_URL = "https://risazatvorchestvo.com/releases"
 YANDEX_MUSIC_NEW_RELEASES_URL = "https://music.yandex.ru/new-releases/"
 YANDEX_MUSIC_NEW_RELEASES_ENTITY_URL = "https://music.yandex.ru/entities/new-releases/web_newreleases"
@@ -55,36 +54,8 @@ def get_yesterday(timezone: str = DEFAULT_TIMEZONE) -> date:
 
 
 def fetch_yesterdays_releases(
-    url: str = RELEASES_URL,
-    *,
-    timezone: str = DEFAULT_TIMEZONE,
-    source: str = "yandex_music",
-    yandex_music_token: str | None = None,
-    yandex_music_extra_queries: Iterable[str] | None = DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES,
-    fallback_to_html: bool = False,
-    timeout: int = 20,
-    attempts: int = 3,
-    retry_delay: float = 2.0,
 ) -> list[Release]:
-    target_date = get_yesterday(timezone)
-    source = _normalize_source(source)
-
-    if source == "yandex_music_web":
-        return fetch_yandex_music_web_releases()
-
-    if source == "yandex_music":
-        try:
-            return fetch_yandex_music_releases(
-                target_date=target_date,
-                token=yandex_music_token,
-                extra_search_queries=yandex_music_extra_queries,
-            )
-        except ReleaseParserError:
-            if not fallback_to_html:
-                raise
-
-    html = fetch_releases_page(url, timeout=timeout, attempts=attempts, retry_delay=retry_delay)
-    return parse_releases(html, base_url=url, target_date=target_date)
+    return fetch_yandex_music_web_releases()
 
 
 def fetch_yandex_music_web_releases() -> list[Release]:
@@ -95,10 +66,10 @@ def fetch_yandex_music_web_releases() -> list[Release]:
 
 
 def fetch_yandex_music_releases(
-    *,
-    target_date: date,
-    token: str | None = None,
-    extra_search_queries: Iterable[str] | None = DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES,
+        *,
+        target_date: date,
+        token: str | None = None,
+        extra_search_queries: Iterable[str] | None = DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES,
 ) -> list[Release]:
     web_release_items: list[tuple[str, Release]] = []
     web_error: Exception | None = None
@@ -171,9 +142,9 @@ def fetch_yandex_music_releases(
 
 
 def _fetch_yandex_music_web_release_items(
-    url: str = YANDEX_MUSIC_NEW_RELEASES_URL,
-    *,
-    timeout: int = 20,
+        url: str = YANDEX_MUSIC_NEW_RELEASES_URL,
+        *,
+        timeout: int = 20,
 ) -> list[tuple[str, Release]]:
     last_error: requests.RequestException | None = None
     for candidate_url in _yandex_music_web_release_urls(url):
@@ -202,9 +173,9 @@ def _yandex_music_web_release_urls(url: str) -> list[str]:
 
 
 def _fetch_yandex_music_web_release_items_from_url(
-    url: str,
-    *,
-    timeout: int = 20,
+        url: str,
+        *,
+        timeout: int = 20,
 ) -> list[tuple[str, Release]]:
     response = requests.get(
         url,
@@ -234,7 +205,7 @@ def _parse_yandex_music_web_state_releases(html: str) -> list[tuple[str, Release
 
     for match in re.finditer(r'\{"type":"album_item","data":', html):
         try:
-            item, _ = decoder.raw_decode(html[match.start() :])
+            item, _ = decoder.raw_decode(html[match.start():])
         except json.JSONDecodeError:
             continue
 
@@ -323,11 +294,11 @@ def _find_yandex_music_album_card(node: Tag) -> Tag | None:
 
 
 def fetch_releases_page(
-    url: str = RELEASES_URL,
-    *,
-    timeout: int = 20,
-    attempts: int = 3,
-    retry_delay: float = 2.0,
+        url: str = RELEASES_URL,
+        *,
+        timeout: int = 20,
+        attempts: int = 3,
+        retry_delay: float = 2.0,
 ) -> str:
     last_error: Exception | None = None
 
@@ -467,7 +438,7 @@ def _fetch_yandex_music_albums(client: Any, album_ids: Iterable[Any], batch_size
     ids = _unique_album_ids(album_ids)
 
     for index in range(0, len(ids), batch_size):
-        albums.extend(_fetch_yandex_music_album_batch(client, ids[index : index + batch_size]))
+        albums.extend(_fetch_yandex_music_album_batch(client, ids[index: index + batch_size]))
 
     return albums
 
