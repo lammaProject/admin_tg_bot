@@ -108,7 +108,7 @@ async def process_update(update_data: dict):
 
     @dp.message(Command("release"))
     async def release_handler(message: types.Message):
-        target_date = get_yesterday("Asia/Yekaterinburg")
+        target_date = get_yesterday()
 
         try:
             releases = fetch_yesterdays_releases(
