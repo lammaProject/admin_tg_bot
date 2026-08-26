@@ -49,8 +49,8 @@ class Release:
     url: str
 
 
-def get_yesterday(timezone: str = DEFAULT_TIMEZONE) -> date:
-    return datetime.now(ZoneInfo(timezone)).date() - timedelta(days=1)
+def get_yesterday() -> date:
+    return datetime.now(ZoneInfo(DEFAULT_TIMEZONE)).date() - timedelta(days=1)
 
 
 def fetch_yesterdays_releases(
