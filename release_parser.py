@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import html
 import json
 import os
 import random
 import re
 import time
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any, Iterable
+from typing import Any, Iterable, List, Tuple
 from urllib.parse import urljoin
 
 import requests
@@ -15,11 +17,15 @@ from bs4 import BeautifulSoup, Tag
 from zoneinfo import ZoneInfo
 
 RELEASES_URL = "https://risazatvorchestvo.com/releases"
-YANDEX_MUSIC_NEW_RELEASES_URL = "https://music.yandex.ru/new-releases/"
+YANDEX_MUSIC_NEW_RELEASES_URL = "https://vk.ru/release_list"
 YANDEX_MUSIC_NEW_RELEASES_ENTITY_URL = "https://music.yandex.ru/entities/new-releases/web_newreleases"
 YANDEX_MUSIC_ALBUM_URL = "https://music.yandex.ru/album/{album_id}"
 DEFAULT_TIMEZONE = "Asia/Yekaterinburg"
 DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES: tuple[str, ...] = ()
+
+VK_ACCESS_TOKEN = "51ec037451ec037451ec0374f952af347b551ec51ec03743b6251c0ed3f745469589930"
+VK_API_VERSION = "5.199"
+VK_API_URL = "https://api.vk.com/method/wall.get"
 
 MONTHS_RU = {
     "января": 1,
@@ -36,6 +42,9 @@ MONTHS_RU = {
     "декабря": 12,
 }
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 class ReleaseParserError(RuntimeError):
     pass
@@ -49,122 +58,31 @@ class Release:
     url: str
 
 
+class VKPost:
+    post_id: int
+    date: datetime
+    text: str
+    url: str
+
+
 def get_yesterday() -> date:
     return datetime.now(ZoneInfo(DEFAULT_TIMEZONE)).date() - timedelta(days=1)
 
 
 def fetch_yesterdays_releases(
-) -> list[Release]:
+) -> str:
     return fetch_yandex_music_web_releases()
 
 
-def fetch_yandex_music_web_releases() -> list[Release]:
-    releases = [release for _, release in _fetch_yandex_music_web_release_items()]
-    if not releases:
-        raise ReleaseParserError("Yandex Music web source returned 0 releases")
-    return releases
-
-
-def fetch_yandex_music_releases(
-        *,
-        target_date: date,
-        token: str | None = None,
-        extra_search_queries: Iterable[str] | None = DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES,
-) -> list[Release]:
-    web_release_items: list[tuple[str, Release]] = []
-    web_error: Exception | None = None
-    try:
-        web_release_items = _fetch_yandex_music_web_release_items()
-    except requests.RequestException as error:
-        web_error = error
-
-    token = token if token is not None else os.getenv("YANDEX_MUSIC_TOKEN")
-    albums: list[Any] = []
-    api_error: Exception | None = None
-
-    if token:
-        try:
-            from yandex_music import Client
-        except ImportError as error:
-            api_error = error
-        else:
-            try:
-                client = Client(token)
-                album_ids: list[Any] = [album_id for album_id, _ in web_release_items]
-
-                try:
-                    landing = client.new_releases()
-                    album_ids.extend(getattr(landing, "new_releases", []) or [])
-                except Exception:
-                    if not album_ids:
-                        raise
-
-                album_ids = _unique_album_ids(album_ids)
-                albums = _fetch_yandex_music_albums(client, album_ids)
-                albums.extend(_search_yandex_music_albums(client, extra_search_queries))
-            except Exception as error:
-                api_error = error
-
-    if not token and not web_release_items:
-        raise ReleaseParserError("YANDEX_MUSIC_TOKEN is required when Yandex Music web releases are unavailable")
-
-    releases: list[tuple[int, Release]] = []
-    seen_album_ids: set[str] = set()
-    for album in albums:
-        album_id = getattr(album, "id", None)
-        album_id_key = _clean_value(str(album_id or ""))
-        if album_id_key in seen_album_ids:
-            continue
-        if album_id_key:
-            seen_album_ids.add(album_id_key)
-
-        album_date = _extract_album_date(getattr(album, "release_date", None))
-        if album_date and album_date != target_date:
-            continue
-
-        release = _release_from_yandex_album(album)
-        if release:
-            releases.append((_album_likes_count(album), release))
-
-    for album_id, release in web_release_items:
-        if album_id not in seen_album_ids:
-            releases.append((0, release))
-
-    if releases:
-        return [release for _, release in sorted(releases, key=lambda item: item[0], reverse=True)]
-
-    if api_error:
-        raise ReleaseParserError(f"Failed to fetch Yandex Music releases: {api_error}") from api_error
-    if web_error:
-        raise ReleaseParserError(f"Failed to fetch Yandex Music web releases: {web_error}") from web_error
-
-    return []
-
-
-def _fetch_yandex_music_web_release_items(
-        url: str = YANDEX_MUSIC_NEW_RELEASES_URL,
-        *,
-        timeout: int = 20,
-) -> list[tuple[str, Release]]:
-    last_error: requests.RequestException | None = None
-    for candidate_url in _yandex_music_web_release_urls(url):
-        try:
-            releases = _fetch_yandex_music_web_release_items_from_url(candidate_url, timeout=timeout)
-        except requests.RequestException as error:
-            last_error = error
-            continue
-        if releases:
-            return releases
-
-    if last_error:
-        raise last_error
-    return []
+def fetch_yandex_music_web_releases() -> str:
+    return _fetch_yandex_music_web_release_items_from_url()
 
 
 def _yandex_music_web_release_urls(url: str) -> list[str]:
-    urls = [url, YANDEX_MUSIC_NEW_RELEASES_ENTITY_URL, YANDEX_MUSIC_NEW_RELEASES_URL]
+    urls = [url]
     result: list[str] = []
     seen: set[str] = set()
+
     for item in urls:
         if item and item not in seen:
             seen.add(item)
@@ -173,10 +91,8 @@ def _yandex_music_web_release_urls(url: str) -> list[str]:
 
 
 def _fetch_yandex_music_web_release_items_from_url(
-        url: str,
-        *,
-        timeout: int = 20,
-) -> list[tuple[str, Release]]:
+) -> str:
+    url = "https://vk.ru/release_list"
     response = requests.get(
         url,
         headers={
@@ -187,15 +103,12 @@ def _fetch_yandex_music_web_release_items_from_url(
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
         },
-        timeout=timeout,
+        timeout=20,
     )
     response.raise_for_status()
 
-    releases = _parse_yandex_music_web_state_releases(response.text)
-    if releases:
-        return releases
-
-    return _parse_yandex_music_web_html_releases(response.text)
+    post = fetch_latest_vk_post("https://vk.ru/release_list")
+    return post
 
 
 def _parse_yandex_music_web_state_releases(html: str) -> list[tuple[str, Release]]:
@@ -792,3 +705,69 @@ def _first_value(item: dict[str, Any], keys: tuple[str, ...]) -> Any:
         if actual_key:
             return item[actual_key]
     return None
+
+
+def fetch_latest_vk_post(
+        url: str,
+        *,
+        access_token: str | None = None,
+        timeout: int = 20,
+) -> str:
+    """
+    Получает последний пост со страницы VK.
+
+    Пример:
+        fetch_latest_vk_post("https://vk.ru/release_list")
+    """
+    domain = _extract_vk_domain(url)
+    token = access_token or VK_ACCESS_TOKEN
+
+    if not token:
+        raise ReleaseParserError(
+            "Не указан VK_ACCESS_TOKEN. "
+            "Задайте переменную окружения VK_ACCESS_TOKEN."
+        )
+
+    response = requests.get(
+        VK_API_URL,
+        params={
+            "access_token": token,
+            "v": VK_API_VERSION,
+            "domain": domain,
+            "count": 1,
+            "offset": 0,
+            "extended": 0,
+        },
+        timeout=timeout,
+    )
+    response.raise_for_status()
+
+    data = response.json().get("response").get("items")[0]
+    text = data.get("text")
+
+    if "Релизы на неделе" in text:
+        main_text = text.split("Релизы на неделе")[0].strip()
+    else:
+        main_text = text
+
+    return main_text
+
+
+def _extract_vk_domain(url: str) -> str:
+    """
+    https://vk.ru/release_list
+    https://vk.com/release_list
+    -> release_list
+    """
+    match = re.search(
+        r"(?:vk\.ru|vk\.com)/([^/?#]+)",
+        url,
+        re.I,
+    )
+
+    if not match:
+        raise ReleaseParserError(
+            f"Не удалось определить VK domain из URL: {url}"
+        )
+
+    return match.group(1)

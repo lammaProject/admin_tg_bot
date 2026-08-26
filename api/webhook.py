@@ -111,16 +111,11 @@ async def process_update(update_data: dict):
         target_date = get_yesterday()
 
         try:
-            releases = fetch_yesterdays_releases()
-            total_count = len(releases)
-            if RELEASES_LIMIT > 0:
-                releases = releases[:RELEASES_LIMIT]
-            text = format_releases_message(releases, target_date, total_count=total_count)
+            text = fetch_yesterdays_releases()
         except ReleaseParserError as error:
             text = f"Не получилось получить релизы за {target_date:%d.%m.%Y}: {error}"
 
-        for chunk in split_telegram_message(text):
-            await bot.send_message(message.chat.id, chunk)
+        await bot.send_message(message.chat.id, text)
 
     @dp.message()
     async def message_handler(message: types.Message):
