@@ -22,7 +22,7 @@ async def scrapper_test():
     try:
 
         print('start')
-        target_date = get_yesterday('Asia/Yekaterinburg')
+        target_date = get_yesterday()
         print(target_date)
         releases = fetch_yesterdays_releases(
         )
