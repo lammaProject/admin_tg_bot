@@ -31,7 +31,6 @@ NAME_BOT = os.getenv("NAME_BOT")
 NICK_BOT = os.getenv("NICK_BOT")
 BOT2_WEBHOOK_URL = os.getenv("BOT2_WEBHOOK_URL")
 OTHER_BOTS = json.loads(os.getenv("OTHER_BOTS", "[]"))
-RELEASES_TIMEZONE = os.getenv("RELEASES_TIMEZONE", DEFAULT_TIMEZONE)
 RELEASES_SOURCE = os.getenv("RELEASES_SOURCE", "yandex_music")
 RELEASES_FETCH_ATTEMPTS = int(os.getenv("RELEASES_FETCH_ATTEMPTS", "3"))
 RELEASES_RETRY_DELAY = float(os.getenv("RELEASES_RETRY_DELAY", "2"))
@@ -39,7 +38,8 @@ RELEASES_FALLBACK_TO_HTML = os.getenv("RELEASES_FALLBACK_TO_HTML", "0").lower() 
 RELEASES_LIMIT = int(os.getenv("RELEASES_LIMIT", "10"))
 RELEASES_EXTRA_SEARCH_QUERIES = tuple(
     query.strip()
-    for query in os.getenv("RELEASES_EXTRA_SEARCH_QUERIES", ";".join(DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES)).split(";")
+    for query in
+    os.getenv("RELEASES_EXTRA_SEARCH_QUERIES", ";".join(DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES)).split(";")
     if query.strip()
 )
 YANDEX_MUSIC_TOKEN = os.getenv("YANDEX_MUSIC_TOKEN")
@@ -108,11 +108,11 @@ async def process_update(update_data: dict):
 
     @dp.message(Command("release"))
     async def release_handler(message: types.Message):
-        target_date = get_yesterday(RELEASES_TIMEZONE)
+        target_date = get_yesterday("Asia/Yekaterinburg")
 
         try:
             releases = fetch_yesterdays_releases(
-                timezone=RELEASES_TIMEZONE,
+                timezone="Asia/Yekaterinburg",
                 source=RELEASES_SOURCE,
                 yandex_music_token=YANDEX_MUSIC_TOKEN,
                 yandex_music_extra_queries=RELEASES_EXTRA_SEARCH_QUERIES,

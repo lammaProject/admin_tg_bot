@@ -6,13 +6,7 @@ from aiogram import Bot
 from dotenv import load_dotenv
 
 from release_parser import (
-    DEFAULT_TIMEZONE,
     DEFAULT_YANDEX_MUSIC_EXTRA_SEARCH_QUERIES,
-    ReleaseParserError,
-    fetch_yesterdays_releases,
-    format_releases_message,
-    get_yesterday,
-    split_telegram_message,
 )
 from scrapper import scrapper_test
 
@@ -20,7 +14,6 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-RELEASES_TIMEZONE = os.getenv("RELEASES_TIMEZONE", DEFAULT_TIMEZONE)
 RELEASES_SOURCE = os.getenv("RELEASES_SOURCE", "yandex_music")
 RELEASES_FETCH_ATTEMPTS = int(os.getenv("RELEASES_FETCH_ATTEMPTS", "3"))
 RELEASES_RETRY_DELAY = float(os.getenv("RELEASES_RETRY_DELAY", "2"))
