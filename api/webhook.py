@@ -111,15 +111,7 @@ async def process_update(update_data: dict):
         target_date = get_yesterday()
 
         try:
-            releases = fetch_yesterdays_releases(
-                timezone="Asia/Yekaterinburg",
-                source=RELEASES_SOURCE,
-                yandex_music_token=YANDEX_MUSIC_TOKEN,
-                yandex_music_extra_queries=RELEASES_EXTRA_SEARCH_QUERIES,
-                fallback_to_html=RELEASES_FALLBACK_TO_HTML,
-                attempts=RELEASES_FETCH_ATTEMPTS,
-                retry_delay=RELEASES_RETRY_DELAY,
-            )
+            releases = fetch_yesterdays_releases()
             total_count = len(releases)
             if RELEASES_LIMIT > 0:
                 releases = releases[:RELEASES_LIMIT]
