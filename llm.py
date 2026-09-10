@@ -31,7 +31,7 @@ client_genai = genai.Client(
 )
 client_redis = redis.Redis.from_url(REDIS_URL)
 
-model_groq = "qwen/qwen3.6-27b"
+model_groq = "meta-llama/llama-prompt-guard-2-22m"
 
 models_genai = [
     "gemini-3-flash-preview",
