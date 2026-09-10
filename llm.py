@@ -87,6 +87,8 @@ def generation_message_chat(text: str | None = None) -> str | None:
         include_reasoning=False
     )
 
+    print(completion.choices[0].message.content)
+
     return completion.choices[0].message.content
 
 
