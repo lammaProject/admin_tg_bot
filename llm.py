@@ -77,13 +77,14 @@ def generation_message_chat(text: str | None = None) -> str | None:
     chat_history: list[ChatCompletionMessageParam] = [
         cast(ChatCompletionMessageParam, {
             "role": "system",
-            "content": f"{system}"
+            "content": f"{system}",
         }), *user_message
     ]
 
     completion = client_groq.chat.completions.create(
         model=model_groq,
-        messages=chat_history
+        messages=chat_history,
+        include_reasoning=False
     )
 
     return completion.choices[0].message.content
