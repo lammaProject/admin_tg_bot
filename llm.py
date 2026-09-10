@@ -31,7 +31,7 @@ client_genai = genai.Client(
 )
 client_redis = redis.Redis.from_url(REDIS_URL)
 
-model_groq = "meta-llama/llama-prompt-guard-2-22m"
+model_groq = "llama-3.1-8b-instant"
 
 models_genai = [
     "gemini-3-flash-preview",
@@ -76,7 +76,7 @@ def generation_message_chat(text: str | None = None) -> str | None:
 
     chat_history: list[ChatCompletionMessageParam] = [
         cast(ChatCompletionMessageParam, {
-            "role": "assistant",
+            "role": "system",
             "content": f"{system}"
         }), *user_message
     ]
