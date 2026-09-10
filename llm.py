@@ -76,7 +76,7 @@ def generation_message_chat(text: str | None = None) -> str | None:
 
     chat_history: list[ChatCompletionMessageParam] = [
         cast(ChatCompletionMessageParam, {
-            "role": "system",
+            "role": "assistant",
             "content": f"{system}"
         }), *user_message
     ]
