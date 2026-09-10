@@ -106,6 +106,7 @@ def generation_message():
     )
 
     message_res = completion.choices[0].message.content
+    print(message_res)
     return message_res
 
 
